@@ -1,0 +1,56 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.oraen.box</groupId>
+  <artifactId>oraen-box</artifactId>
+  <version>1.0-RELEASE</version>
+  <packaging>pom</packaging>
+  <name>oraen-box</name>
+  <url>http://oraen.com</url>
+  <modules>
+    <module>oraen-box-common</module>
+    <module>oraen-box-loader</module>
+  </modules>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.oraen.box</groupId>
+        <artifactId>oraen-box-common</artifactId>
+        <version>1.0.0-RELEASE</version>
+      </dependency>
+      <dependency>
+        <groupId>com.oraen.box</groupId>
+        <artifactId>oraen-box-loader</artifactId>
+        <version>1.0.0-RELEASE</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-lang3</artifactId>
+        <version>3.18.0</version>
+      </dependency>
+      <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <version>1.18.30</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-context</artifactId>
+        <version>4.3.25.RELEASE</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>2.17.1</version>
+      </dependency>
+      <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <version>5.10.0</version> <!-- 可换为你希望的版本 -->
+        <scope>test</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+</project>
