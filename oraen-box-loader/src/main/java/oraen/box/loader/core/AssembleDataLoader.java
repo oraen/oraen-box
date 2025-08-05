@@ -21,7 +21,7 @@ public class AssembleDataLoader<T> implements DataLoader<T> {
 
     private List<String> dependencies;
 
-    private Function<LoadContext, T> getDataFunction;
+    private Function<LoadContext, T> dataFunction;
 
 
     @Override
@@ -36,6 +36,6 @@ public class AssembleDataLoader<T> implements DataLoader<T> {
 
     @Override
     public T getData(LoadContext context) {
-        return getDataFunction.apply(context);
+        return dataFunction.apply(context);
     }
 }

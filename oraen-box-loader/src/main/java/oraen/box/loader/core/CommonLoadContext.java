@@ -1,7 +1,9 @@
 package oraen.box.loader.core;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import lombok.Getter;
 import lombok.Setter;
+import oraen.box.common.util.JSONUtil;
 import oraen.box.loader.DataLoader;
 import oraen.box.loader.ExecResult;
 import oraen.box.loader.LoadContext;
@@ -9,17 +11,17 @@ import oraen.box.loader.LoadContext;
 import java.util.*;
 import java.util.concurrent.*;
 
+import static com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.ANY;
+
 @SuppressWarnings("unchecked")
+@JsonAutoDetect(fieldVisibility = ANY)
 public class CommonLoadContext implements LoadContext {
 
-    @Getter// todo test
     private final Map<String, DataLoader<?>> dataLoaderMap;
 
-    @Getter// todo test
     //初始化时统一写，避免后续并发写操作
     private final Map<String, ExecResult> dataLoadResultMap = new HashMap<>();
 
-    @Getter// todo test
     private final ConcurrentMap<String, Object> contextVariableMap = new ConcurrentHashMap<>();
 
     @Getter
@@ -58,7 +60,7 @@ public class CommonLoadContext implements LoadContext {
     @Getter
     Throwable throwable;
 
-    public CommonLoadContext(Object initParam, Object initResp, Collection<DataLoader<?>> dataLoaders) {
+    public CommonLoadContext(Object initParam, Object initResp, Collection<? extends DataLoader<?>> dataLoaders) {
         this.initParam = initParam;
         this.resp = initResp;
         dataLoaderMap = new HashMap<>();
@@ -157,6 +159,10 @@ public class CommonLoadContext implements LoadContext {
     public void submitTask(Runnable runnable) {
         CompletableFuture<Void> future = CompletableFuture.runAsync(runnable, executor);
         extraTasks.add(future);
+    }
+
+    public String debugString(){
+        return JSONUtil.toJson(this);
     }
 
 

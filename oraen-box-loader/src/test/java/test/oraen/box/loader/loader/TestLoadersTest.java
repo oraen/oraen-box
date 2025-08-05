@@ -1,13 +1,13 @@
 package test.oraen.box.loader.loader;
 
+import oraen.box.common.util.JSONUtil;
 import oraen.box.common.util.ListUtil;
 import oraen.box.common.util.ThreadUtil;
-import oraen.box.loader.ExecLog;
-import oraen.box.loader.LoadContext;
-import oraen.box.loader.ProcessNode;
+import oraen.box.loader.*;
 import oraen.box.loader.core.CommonLoaderHandler;
 import oraen.box.loader.core.CommonMapDataLoaderContainer;
 import oraen.box.loader.core.LoadUtil;
+import oraen.box.loader.extend.ParallelDataBuilder;
 import org.apache.commons.lang3.RandomUtils;
 import org.junit.jupiter.api.Test;
 import test.oraen.box.loader.entry.*;
@@ -22,7 +22,46 @@ import java.util.stream.Collectors;
 
 public class TestLoadersTest {
 
+    @Test
+    public void testBuilder(){
+        ParallelDataBuilder<MainParam, MainPage> builder = new ParallelDataBuilder<MainParam, MainPage>()
+                .addNodes(new GetUserInfo(), new GetMapInfo(), new GetControlTab(), new GetCouponInfo(), new GetItemList(),
+                        new GetItemInfo(), new GetItemTag(), new GetOrderInfo(), new GetRecommendInfo())
+                .addNodes(new GetSearchInfo())
+                .addNodes(new GetShopInfo())
+                .setExecTimeout(2000L)
+                .addHooks(new ProcessorHook<MainParam, MainPage>() {
+                    @Override
+                    public void beforeNodeExec(String name, MainParam initParam, MainPage result, LoadContext loadContext) {
+                        System.out.println("Starting execution of node: " + name + " at " + LocalDateTime.now());
+                    }
 
+                    @Override
+                    public void afterNodeExec(String name, MainParam initParam, MainPage result, LoadContext loadContext, ExecResult loaderExecResult) {
+                        System.out.println("Completed execution of note: " + name + " and loaderExecResult is " + JSONUtil.toJson(loaderExecResult));
+                    }
+
+                    @Override
+                    public void beforeLoad(MainParam initParam, MainPage result, LoadContext loadContext) {
+                        System.out.println("Starting data loading at " + LocalDateTime.now());
+                    }
+
+                    @Override
+                    public void afterLoad(MainParam initParam, MainPage result, LoadContext loadContext) {
+                        System.out.println("Completed data loading at " + LocalDateTime.now() + " result is " + JSONUtil.toJson(result));
+                    }
+                })
+     //           .setExecutors(Collections.singletonList(Executors.newFixedThreadPool(16)))
+                .ensure();
+
+        MainPage initResp = new MainPage();
+        builder.buildResp(MainParam.builder().lat("123.12").lng("32.s").appType(1).build(), initResp);
+
+        System.out.println(JSONUtil.toJson(initResp));
+    }
+
+
+    //pass
     @Test
     public void testHandler() {
 
@@ -66,10 +105,8 @@ public class TestLoadersTest {
 
         MainPage initResp = new MainPage();
         ExecLog execLog = commonLoaderHandler.execDataLoadWithLog(mainLoader, MainParam.builder().lat("123.12").lng("32.s").appType(1).build(), initResp);
-        if(initResp.getItemInfos() != null) {
-            System.out.println("viiv");
-        }
-       // System.out.println(execLog.showExeLog());
+
+       System.out.println(execLog.showExeLog());
     }
 
     public static class MainLoader implements ProcessNode<MainParam, MainPage>{
@@ -357,12 +394,12 @@ public class TestLoadersTest {
 
         @Override
         public Object process(MainParam param, MainPage resp, LoadContext context) {
-            throw new RuntimeException("获取订单异常");
+            throw new RuntimeException("error when get order info");
         }
 
         @Override
         public Object fallback(MainParam param, MainPage resp, Throwable e, LoadContext context) {
-            System.out.println("异常了哇，Fallback for GetOrderInfo: " + e.getMessage());
+            System.out.println("error!，Fallback for GetOrderInfo: " + e.getMessage());
             List<OrderInfo> orderInfos = new ArrayList<>();
             orderInfos.add(OrderInfo.builder()
                     .orderId(1L)

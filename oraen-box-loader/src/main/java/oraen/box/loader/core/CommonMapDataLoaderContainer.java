@@ -32,7 +32,11 @@ public class CommonMapDataLoaderContainer implements DataLoaderContainer {
         return this;
     }
 
-    public CommonMapDataLoaderContainer addDataLoader(DataLoader<?>... dataLoaders) {
+    public CommonMapDataLoaderContainer addDataLoaders(DataLoader<?>... dataLoaders) {
+        return addDataLoaders(Arrays.asList(dataLoaders));
+    }
+
+    public CommonMapDataLoaderContainer addDataLoaders(List<? extends DataLoader<?>> dataLoaders) {
         for (DataLoader<?> dataLoader : dataLoaders) {
             addDataLoader(dataLoader);
         }
