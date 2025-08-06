@@ -6,10 +6,18 @@
         <artifactId>oraen-box</artifactId>
         <version>1.0.0-RELEASE</version>
     </parent>
+
     <artifactId>oraen-box-common</artifactId>
     <version>1.0.0-RELEASE</version>
+
+    <packaging>jar</packaging>
+
     <name>oraen-box-common</name>
-    <url>http://maven.apache.org</url>
+    <description>
+        A lightweight and reusable Java utility library that provides common helper classes
+        for string manipulation, date/time handling, collection operations, and other frequently
+        used functions. Designed to be modular and dependency-free, suitable for use across various projects.
+    </description>
 
     <dependencies>
         <dependency>

@@ -4,12 +4,18 @@
     <parent>
         <groupId>com.oraen.box</groupId>
         <artifactId>oraen-box</artifactId>
-        <version>1.0-RELEASE</version>
+        <version>1.0.0-RELEASE</version>
     </parent>
+
     <artifactId>oraen-box-loader</artifactId>
-    <name>oraen-box-loader</name>
     <version>1.0.0-RELEASE</version>
-    <url>http://maven.apache.org</url>
+
+    <packaging>jar</packaging>
+
+    <name>oraen-box-loader</name>
+    <description>
+        A framework for loading and managing complex data.
+    </description>
 
     <dependencies>
         <dependency>
