@@ -1,6 +1,5 @@
 package test.oraen.box.loader.loader;
 
-import com.sun.xml.internal.ws.handler.HandlerException;
 import oraen.box.common.util.JSONUtil;
 import oraen.box.common.util.ListUtil;
 import oraen.box.common.util.RandomUtil;
@@ -298,7 +297,7 @@ public class TestLoadersTest {
                 throw new RuntimeException();
             }else if(RandomUtil.rate(0.5)){
                 System.out.println("itemList handle error not retry");
-                throw new HandlerException("");
+                throw new ArithmeticException("");
             }else{
                 System.out.println("itemList  successful");
             }
@@ -309,7 +308,7 @@ public class TestLoadersTest {
 
         @Override
         public RetryCommand needRetry(MainParam param, MainPage resp, LoadContext context, Throwable e) {
-            if(e instanceof HandlerException){
+            if(e instanceof ArithmeticException){
                 return RetryCommand.GIVE_UP;
             }else{
                 return RetryCommand.RETRY;
