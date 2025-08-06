@@ -33,7 +33,7 @@ public interface DataLoader<T> {
      * @return the loaded data, or null if loading is not needed
      */
     default T fallback(LoadContext context, Throwable e){
-        return null;
+        throw e instanceof RuntimeException ? (RuntimeException)e : new RuntimeException(e);
     }
 
     /**
@@ -45,5 +45,15 @@ public interface DataLoader<T> {
     default boolean needLoad(LoadContext context) {
         return true;
     }
+
+    default int maxRetry() {
+        return 1;
+    }
+
+    //如果返回keep，则由maxRetry决定
+    default RetryCommand needRetry(LoadContext context, Throwable e) {
+        return RetryCommand.KEEP;
+    }
+
 
 }

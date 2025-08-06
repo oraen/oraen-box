@@ -8,7 +8,7 @@
     </parent>
 
     <artifactId>oraen-box-loader</artifactId>
-    <version>1.0.1-RELEASE</version>
+    <version>1.1.0-RELEASE</version>
 
     <packaging>jar</packaging>
 

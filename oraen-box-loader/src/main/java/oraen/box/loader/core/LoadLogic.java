@@ -1,12 +1,14 @@
 package oraen.box.loader.core;
 
-import oraen.box.loader.DataLoader;
-import oraen.box.loader.ExecResult;
-import oraen.box.loader.LoaderHook;
+import oraen.box.common.util.CollectionUtil;
+import oraen.box.common.util.ListUtil;
+import oraen.box.loader.*;
 
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class LoadLogic {
 
@@ -144,21 +146,50 @@ public class LoadLogic {
                     for(LoaderHook hook : hooks) {
                         hook.beforeExec(dataLoader.name(), loadContext);
                     }
+                    Object re = null;
+                    //重试逻辑
+                    int currentRetry = 0;
+                    int maxRetry = dataLoader.maxRetry();
+                    while(true){
+                        currentRetry ++;
+                        int currentRetry0 = currentRetry;
+                        execResult.setRetry(currentRetry0);
+                        try{
+                            re = dataLoader.getData(loadContext);
+                            break;
+                        }catch (Throwable t){
+                            //多个重试拦截器优先级RETRY > GIVE_UP > KEEP
+                            List<RetryCommand> retryCommands = ListUtil.of(dataLoader.needRetry(loadContext, t));
+                            retryCommands
+                                    .addAll(reverseHooks.stream()
+                                            .map(hook -> hook.onMaybeNeedRetry(dataLoader.name(), t, currentRetry0, maxRetry, loadContext))
+                                            .collect(Collectors.toList()));
 
-                    Object re = dataLoader.getData(loadContext);
+                            boolean shouldRetry = shouldRetry(retryCommands, currentRetry, maxRetry);
+                            if(shouldRetry){
+                                continue;
+                            }else{
+                                throw t;
+                            }
+                        }
+                    }
+
                     execResult.setResult(re);
                     execResult.setStatus(ExecResult.STATUS_SUCCESS);
-
                     execResult.setSuccess(true);
                 }catch (Throwable e) {
                     execResult.setException(e);
                     execResult.setUseFallback(true);
                     try{
                         for(LoaderHook hook : hooks) {
-                            hook.onLoaderLoadExceptionCaught(dataLoader.name(), e, loadContext);
+                            hook.beforeFallback(dataLoader.name(), e, loadContext);
                         }
 
                         Object re = dataLoader.fallback(loadContext, e);
+
+                        for(LoaderHook hook : reverseHooks){
+                            hook.afterFallback(dataLoader.name(), e, loadContext, execResult);
+                        }
                         execResult.setResult(re);
                         execResult.setStatus(ExecResult.STATUS_FALLBACK);
                     }catch (Throwable e1) {
@@ -200,5 +231,30 @@ public class LoadLogic {
                 }
             }
         }
+    }
+
+    //多个重试拦截器优先级RETRY > GIVE_UP > KEEP
+    private static boolean shouldRetry(List<RetryCommand> retryCommands, int currentRetry, int maxRetry){
+        if(CollectionUtil.isEmpty(retryCommands)){
+            return maxRetry > currentRetry;
+        }
+
+        if(retryCommands.stream().anyMatch(retryCommand -> retryCommand == RetryCommand.RETRY_FORCE)){
+            return true;
+        }
+
+        if(retryCommands.stream().anyMatch(retryCommand -> retryCommand == RetryCommand.GIVE_UP_FORCE)){
+            return false;
+        }
+
+        if(retryCommands.stream().anyMatch(retryCommand -> retryCommand == RetryCommand.RETRY)){
+            return true;
+        }
+
+        if(retryCommands.stream().anyMatch(retryCommand -> retryCommand == RetryCommand.GIVE_UP)){
+            return false;
+        }
+
+        return maxRetry > currentRetry;
     }
 }

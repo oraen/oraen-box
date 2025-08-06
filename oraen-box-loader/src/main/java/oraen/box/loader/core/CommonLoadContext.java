@@ -156,9 +156,11 @@ public class CommonLoadContext implements LoadContext {
     }
 
     @Override
-    public void submitTask(Runnable runnable) {
+    public void submitTask(Runnable runnable, boolean blockMain) {
         CompletableFuture<Void> future = CompletableFuture.runAsync(runnable, executor);
-        extraTasks.add(future);
+        if(blockMain){
+            extraTasks.add(future);
+        }
     }
 
     public String debugString(){

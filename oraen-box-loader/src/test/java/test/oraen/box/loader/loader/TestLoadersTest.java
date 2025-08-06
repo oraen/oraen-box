@@ -1,7 +1,9 @@
 package test.oraen.box.loader.loader;
 
+import com.sun.xml.internal.ws.handler.HandlerException;
 import oraen.box.common.util.JSONUtil;
 import oraen.box.common.util.ListUtil;
+import oraen.box.common.util.RandomUtil;
 import oraen.box.common.util.ThreadUtil;
 import oraen.box.loader.*;
 import oraen.box.loader.core.CommonLoaderHandler;
@@ -29,7 +31,7 @@ public class TestLoadersTest {
                         new GetItemInfo(), new GetItemTag(), new GetOrderInfo(), new GetRecommendInfo())
                 .addNodes(new GetSearchInfo())
                 .addNodes(new GetShopInfo())
-                .setExecTimeout(2000L)
+                .setExecTimeout(3000L)
                 .addHooks(new ProcessorHook<MainParam, MainPage>() {
                     @Override
                     public void beforeNodeExec(String name, MainParam initParam, MainPage result, LoadContext loadContext) {
@@ -49,6 +51,21 @@ public class TestLoadersTest {
                     @Override
                     public void afterLoad(MainParam initParam, MainPage result, LoadContext loadContext) {
                         System.out.println("Completed data loading at " + LocalDateTime.now() + " result is " + JSONUtil.toJson(result));
+                    }
+
+                    @Override
+                    public void onFinalExceptionCaught(MainParam initParam, MainPage result, Throwable e, LoadContext loadContext) {
+
+                    }
+
+                    @Override
+                    public void beforeFallback(String name, MainParam initParam, MainPage result, Throwable e, LoadContext loadContext) {
+
+                    }
+
+                    @Override
+                    public void afterFallback(String name, MainParam initParam, MainPage result, Throwable e, LoadContext loadContext, ExecResult loaderExecResult) {
+
                     }
                 })
      //           .setExecutors(Collections.singletonList(Executors.newFixedThreadPool(16)))
@@ -209,7 +226,14 @@ public class TestLoadersTest {
                     .type(2)
                     .build());
 
-            ThreadUtil.sleep(500);
+            ThreadUtil.sleep(300);
+
+            if(RandomUtil.rate(0.6)){
+                System.out.println("couponInfo error and retry");
+                throw new RuntimeException();
+            }else{
+                System.out.println("couponInfo successful");
+            }
 
             resp.setCouponInfos(couponInfos);
             return couponInfos;
@@ -223,6 +247,11 @@ public class TestLoadersTest {
         @Override
         public List<String> dependencies() {
             return ListUtil.of("userInfo");
+        }
+
+        @Override
+        public int maxRetry() {
+            return 9;
         }
     }
 
@@ -264,8 +293,27 @@ public class TestLoadersTest {
 
             ThreadUtil.sleep(250);
 
+            if(RandomUtil.rate(0.3)){
+                System.out.println("itemList common error and retry");
+                throw new RuntimeException();
+            }else if(RandomUtil.rate(0.5)){
+                System.out.println("itemList handle error not retry");
+                throw new HandlerException("");
+            }else{
+                System.out.println("itemList  successful");
+            }
+
             resp.setItemInfos(itemInfos);
             return itemInfos;
+        }
+
+        @Override
+        public RetryCommand needRetry(MainParam param, MainPage resp, LoadContext context, Throwable e) {
+            if(e instanceof HandlerException){
+                return RetryCommand.GIVE_UP;
+            }else{
+                return RetryCommand.RETRY;
+            }
         }
 
         @Override
@@ -293,7 +341,7 @@ public class TestLoadersTest {
                     itemInfo.setItemStatus((int) (itemInfo.getItemId() % 4));
                     itemInfo.setShopId(RandomUtils.nextLong(1, 1000));
                     itemInfo.setShopName("Shop " + itemInfo.getItemId());
-                });
+                }, true);
 
             });
 

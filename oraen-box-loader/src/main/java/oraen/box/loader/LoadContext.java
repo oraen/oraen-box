@@ -55,7 +55,7 @@ public interface LoadContext extends DataLoaderContainer{
 
     Executor getExecutor();
 
-    void submitTask(Runnable runnable);
+    void submitTask(Runnable runnable, boolean blockMain);
 
     enum LoadStatus{
         SUCCESS,
