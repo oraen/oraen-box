@@ -20,6 +20,7 @@ public class LoadLogic {
         long startTime = System.currentTimeMillis();
         loadContext.setExecutor(executor);
         List<DataLoader<?>> dataLoaders = loadContext.getDataLoaders();
+        //准备提交的任务
         Map<String, DataLoadTask> dataLoaderTaskMap = new HashMap<>(dataLoaders.size());
         CountDownLatch waitingTasks = new CountDownLatch(dataLoaders.size());
         AtomicReference<Throwable> exceptionRef = new AtomicReference<>(null);
@@ -107,16 +108,21 @@ public class LoadLogic {
         }catch (Exception e){
             exceptionRef.set(e);
         }finally {
-            for(LoaderHook hook : reverseHooks) {
-                hook.afterLoad(loadContext);
-            }
-
+            Throwable throwable = exceptionRef.get();
             long endTime = System.currentTimeMillis();
             loadContext.setEndTime(endTime);
             loadContext.setStartTime(startTime);
             loadContext.setExeTime(endTime - startTime);
-            loadContext.setThrowable(exceptionRef.get());
-            loadContext.setSuccess(exceptionRef.get() == null);
+            loadContext.setThrowable(throwable);
+            loadContext.setSuccess(throwable == null);
+
+            for(LoaderHook hook : reverseHooks) {
+                if(throwable != null){
+                    hook.onFinalExceptionCaught(throwable, loadContext);
+                }
+
+                hook.afterLoad(loadContext);
+            }
 
         }
         return exceptionRef.get();
@@ -132,31 +138,33 @@ public class LoadLogic {
             dataLoadTask.setExecutor(() -> {
                 ExecResult execResult = loadContext.getDataLoadResult(name);
                 execResult.setStatus(ExecResult.STATUS_EXECUTING);
-                Object re = null;
-                Throwable exception = null;
-                int status = ExecResult.STATUS_EXECUTING;
-                boolean isSuccess = false;
-                boolean useFallback = false;
-                boolean isCompleted = false;
                 long startTime = System.currentTimeMillis();
                 try{
+                    //钩子函数
                     for(LoaderHook hook : hooks) {
                         hook.beforeExec(dataLoader.name(), loadContext);
                     }
 
-                    re = dataLoader.getData(loadContext);
-                    status = ExecResult.STATUS_SUCCESS;
-                    isSuccess = true;
-                    isCompleted = true;
+                    Object re = dataLoader.getData(loadContext);
+                    execResult.setResult(re);
+                    execResult.setStatus(ExecResult.STATUS_SUCCESS);
+
+                    execResult.setSuccess(true);
                 }catch (Throwable e) {
-                    exception = e;
-                    useFallback = true;
+                    execResult.setException(e);
+                    execResult.setUseFallback(true);
                     try{
-                        re = dataLoader.fallback(loadContext, e);
-                        status = ExecResult.STATUS_FALLBACK;
-                        isCompleted = true;
+                        for(LoaderHook hook : hooks) {
+                            hook.onLoaderLoadExceptionCaught(dataLoader.name(), e, loadContext);
+                        }
+
+                        Object re = dataLoader.fallback(loadContext, e);
+                        execResult.setResult(re);
+                        execResult.setStatus(ExecResult.STATUS_FALLBACK);
                     }catch (Throwable e1) {
-                        status = ExecResult.STATUS_ERROR;
+                        execResult.setStatus(ExecResult.STATUS_ERROR);
+
+                        execResult.setException(e1);
                         exceptionRef.set(e1);
                         //兜底方法异常时代表发生致命错误，中断主线程
                         mainThread.interrupt();
@@ -164,12 +172,10 @@ public class LoadLogic {
                 }finally {
                     long endTime = System.currentTimeMillis();
                     countDownLatch.countDown();
-                    //记录状态
-                    execResult.setResult(re);
-                    execResult.setException(exception);
-                    execResult.setStatus(status);
+                    execResult.setCompleted(true);
                     execResult.setExecTime(endTime - startTime);
 
+                    //钩子函数
                     for(LoaderHook hook : reverseHooks) {
                         hook.afterExec(dataLoader.name(), loadContext, execResult);
                     }

@@ -20,4 +20,21 @@ public interface LoaderHook {
     }
 
 
+    default void onFinalExceptionCaught(Throwable e, LoadContext loadContext){
+
+    }
+
+    default void onLoaderLoadExceptionCaught(String name, Throwable e, LoadContext loadContext){
+
+    }
+
+    default void beforeRetry(Throwable e, LoadContext loadContext){
+
+    }
+
+    default void afterRetry(Throwable e, LoadContext loadContext){
+
+    }
+
+
 }
