@@ -6,12 +6,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import oraen.box.common.util.ListUtil;
 import oraen.box.loader.LoadContext;
-import oraen.box.loader.ProcessNode;
+import oraen.box.loader.extend.ProcessNode;
 import oraen.box.loader.core.CommonLoaderHandler;
 import oraen.box.loader.core.CommonMapDataLoaderContainer;
 import org.junit.jupiter.api.Test;
-import test.oraen.box.loader.entry.MainPage;
-import test.oraen.box.loader.entry.MainParam;
 
 import java.util.ArrayList;
 import java.util.Collections;

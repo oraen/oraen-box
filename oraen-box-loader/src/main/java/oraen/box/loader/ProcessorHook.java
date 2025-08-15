@@ -91,6 +91,15 @@ public interface ProcessorHook<P, R> extends LoaderHook{
         }
     }
 
+    default void onEveryError(String name, LoadContext context, Throwable e, RunPoi runPoi){
+        try{
+            P initParam = (P)context.getInitParam(Object.class);
+            R result = (R)context.getResp(Object.class);
+            onEveryError(name, initParam, result, context, e, runPoi);
+        }catch (Throwable ignored){
+        }
+    }
+
     //candy
     void beforeNodeExec(String name, P initParam, R result, LoadContext loadContext);
 
@@ -109,4 +118,6 @@ public interface ProcessorHook<P, R> extends LoaderHook{
     default RetryCommand onMaybeNeedRetry(String name, P initParam, R result, Throwable e, int currentRetry, int maxRetry, LoadContext loadContext){
         return RetryCommand.KEEP;
     }
+
+    void onEveryError(String name, P initParam, R result, LoadContext context, Throwable e, RunPoi runPoi);
 }

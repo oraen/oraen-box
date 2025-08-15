@@ -102,6 +102,11 @@ public class CommonLoadContext implements LoadContext {
     }
 
     @Override
+    public <T> T getDataLoadData(String name) {
+        return (T)getDataLoadResult(name).getResult();
+    }
+
+    @Override
     public <T extends Throwable> T getDataLoadError(String name, Class<T> clazz) {
         return (T)getDataLoadResult(name).getException();
     }
@@ -141,12 +146,27 @@ public class CommonLoadContext implements LoadContext {
     }
 
     @Override
+    public <T> T getInitParam() {
+        return (T)initParam;
+    }
+
+    @Override
     public <T> T getResp(Class<T> clazz) {
         return (T)resp;
     }
 
     @Override
+    public <T> T getResp() {
+        return (T)resp;
+    }
+
+    @Override
     public <T> T getContextVariable(String key, Class<T> clazz) {
+        return (T)contextVariableMap.get(key);
+    }
+
+    @Override
+    public <T> T getContextVariable(String key) {
         return (T)contextVariableMap.get(key);
     }
 

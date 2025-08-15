@@ -1,9 +1,10 @@
 package oraen.box.loader.extend;
 
 import oraen.box.common.util.CollectionUtil;
+import oraen.box.common.util.SpringBeanUtil;
 import oraen.box.loader.DataLoader;
+import oraen.box.loader.LoadContext;
 import oraen.box.loader.LoaderHook;
-import oraen.box.loader.ProcessNode;
 import oraen.box.loader.core.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -11,17 +12,20 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("unchecked")
-public class ParallelDataBuilder<P, R> {
+public class ParallelDataBuilder<P, R> implements ProcessNode<P, R>{
 
     public static volatile List<Executor> defaultExecutors = null;
 
-    private final List<ProcessNode<P, R>> processNodes = new ArrayList<>();
+    private final List<ProcessNode<? super P, ? super R>> processNodes = new ArrayList<>();
 
     private long execTimeout = 2000L;
 
     private List<Executor> executors;
 
     private List<LoaderHook> hooks = new ArrayList<>();
+
+    private String name;
+
 
     public static<P, R> ParallelDataBuilder<P, R> builder() {
         return new ParallelDataBuilder<>();
@@ -57,12 +61,42 @@ public class ParallelDataBuilder<P, R> {
         return defaultExecutors;
     }
 
-    public ParallelDataBuilder<P, R> addNodes(ProcessNode<P, R>... processNode) {
+    //一般被嵌入作为子流程时才需要使用
+    public ParallelDataBuilder<P, R> name(String name) {
+        this.name = name;
+        return this;
+    }
+
+    public ParallelDataBuilder<P, R> addNodes(ProcessNode<? super P, ? super R>... processNode) {
         return addNodes(Arrays.asList(processNode));
     }
 
-    public ParallelDataBuilder<P, R> addNodes(List<ProcessNode<P, R>> processNodes) {
+    public ParallelDataBuilder<P, R> addNodes(Collection<ProcessNode<? super P, ? super R>> processNodes) {
         this.processNodes.addAll(processNodes);
+        return this;
+    }
+
+    public ParallelDataBuilder<P, R> addNodesFromSpring(String... beanNames) {
+        return addNodesFromSpring(Arrays.asList(beanNames));
+    }
+
+    public ParallelDataBuilder<P, R> addNodesFromSpring(Collection<String> beanNames) {
+        for(String beanName : beanNames) {
+            ProcessNode<? super P, ? super R> processNode = SpringBeanUtil.getBean(beanName, ProcessNode.class);
+            this.processNodes.add(processNode);
+        }
+        return this;
+    }
+
+    public <T extends ProcessNode<? super P, ? super R>> ParallelDataBuilder<P, R> addNodesFromSpring(Class<T>... clazzArray) {
+        return addNodesFromSpring(Arrays.asList(clazzArray));
+    }
+
+    public <T extends ProcessNode<? super P, ? super R>> ParallelDataBuilder<P, R> addNodesFromSpring(List<Class<T>> clazzList) {
+        for(Class<T> clazz : clazzList) {
+            ProcessNode<? super P, ? super R> processNode = SpringBeanUtil.getBean(clazz);
+            this.processNodes.add(processNode);
+        }
         return this;
     }
 
@@ -71,12 +105,12 @@ public class ParallelDataBuilder<P, R> {
         return this;
     }
 
-    public ParallelDataBuilder<P, R> setExecutors(List<Executor> executors) {
+    public ParallelDataBuilder<P, R> setExecutors(Collection<Executor> executors) {
         this.executors = new ArrayList<>(executors);
         return this;
     }
 
-    public ParallelDataBuilder<P, R> addExecutors(List<Executor> executors) {
+    public ParallelDataBuilder<P, R> addExecutors(Collection<Executor> executors) {
         this.executors.addAll(executors);
         return this;
     }
@@ -154,4 +188,19 @@ public class ParallelDataBuilder<P, R> {
 
 
 
+
+    @Override
+    public Object process(P param, R resp, LoadContext context) {
+        return buildResp(param, resp);
+    }
+
+    @Override
+    public String name() {
+        return name;
+    }
+
+    @Override
+    public List<String> dependencies() {
+        return Collections.emptyList();
+    }
 }
