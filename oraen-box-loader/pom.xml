@@ -4,11 +4,11 @@
     <parent>
         <groupId>com.oraen.box</groupId>
         <artifactId>oraen-box</artifactId>
-        <version>1.0.0-RELEASE</version>
+        <version>1.0.1-RELEASE</version>
     </parent>
 
     <artifactId>oraen-box-loader</artifactId>
-    <version>1.2.0-RELEASE</version>
+    <version>1.2.1-RELEASE</version>
 
     <packaging>jar</packaging>
 
