@@ -36,5 +36,12 @@ public interface LoaderHook {
     }
 
 
+    default void onEveryError(String name, LoadContext context, Throwable e, RunPoi runPoi){
 
+    }
+
+    enum RunPoi{
+        NORMAL,
+        FALLBACK
+    }
 }

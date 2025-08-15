@@ -11,6 +11,8 @@ public interface LoadContext extends DataLoaderContainer{
      */
     <T> T getDataLoadData(String name, Class<T> clazz);
 
+    <T> T getDataLoadData(String name);
+
     ExecResult getDataLoadResult(String name);
 
     <T extends Throwable> T getDataLoadError(String name, Class<T> clazz);
@@ -25,7 +27,11 @@ public interface LoadContext extends DataLoaderContainer{
      */
     <T> T getInitParam(Class<T> clazz);
 
+    <T> T getInitParam();
+
     <T> T getResp(Class<T> clazz);
+
+    <T> T getResp();
 
     /**
      * Get a context variable by its key and class type.
@@ -34,6 +40,8 @@ public interface LoadContext extends DataLoaderContainer{
      * @param clazz the class type of the
      */
     <T> T getContextVariable(String key, Class<T> clazz);
+
+    <T> T getContextVariable(String key);
 
     /**
      * Set a context variable with a key and value.

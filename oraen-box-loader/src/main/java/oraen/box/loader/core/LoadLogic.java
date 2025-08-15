@@ -158,6 +158,10 @@ public class LoadLogic {
                             re = dataLoader.getData(loadContext);
                             break;
                         }catch (Throwable t){
+                            for(LoaderHook hook : hooks) {
+                                hook.onEveryError(dataLoader.name(), loadContext, t, LoaderHook.RunPoi.NORMAL);
+                            }
+
                             //多个重试拦截器优先级RETRY > GIVE_UP > KEEP
                             List<RetryCommand> retryCommands = ListUtil.of(dataLoader.needRetry(loadContext, t));
                             retryCommands
@@ -194,6 +198,9 @@ public class LoadLogic {
                         execResult.setStatus(ExecResult.STATUS_FALLBACK);
                     }catch (Throwable e1) {
                         execResult.setStatus(ExecResult.STATUS_ERROR);
+                        for(LoaderHook hook : hooks) {
+                            hook.onEveryError(dataLoader.name(), loadContext, e1, LoaderHook.RunPoi.FALLBACK);
+                        }
 
                         execResult.setException(e1);
                         exceptionRef.set(e1);

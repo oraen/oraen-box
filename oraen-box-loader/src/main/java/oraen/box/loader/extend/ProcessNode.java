@@ -1,7 +1,11 @@
-package oraen.box.loader;
+package oraen.box.loader.extend;
+
+import oraen.box.loader.DataLoader;
+import oraen.box.loader.LoadContext;
+import oraen.box.loader.RetryCommand;
 
 @SuppressWarnings("unchecked")
-public interface ProcessNode<P, R> extends DataLoader<Object>{
+public interface ProcessNode<P, R> extends DataLoader<Object> {
 
     @Override
     default Object getData(LoadContext context) {
@@ -26,8 +30,8 @@ public interface ProcessNode<P, R> extends DataLoader<Object>{
 
     Object process(P param, R resp, LoadContext context);
 
-    default Object fallback(P param, R resp, Throwable exception, LoadContext context){
-        return null;
+    default Object fallback(P param, R resp, Throwable t, LoadContext context){
+        throw t instanceof RuntimeException ? (RuntimeException)t : new RuntimeException(t);
     }
 
     default RetryCommand needRetry(P param, R resp, LoadContext context, Throwable e) {

@@ -9,6 +9,7 @@ import oraen.box.loader.core.CommonLoaderHandler;
 import oraen.box.loader.core.CommonMapDataLoaderContainer;
 import oraen.box.loader.core.LoadUtil;
 import oraen.box.loader.extend.ParallelDataBuilder;
+import oraen.box.loader.extend.ProcessNode;
 import org.apache.commons.lang3.RandomUtils;
 import org.junit.jupiter.api.Test;
 import test.oraen.box.loader.entry.*;
@@ -17,7 +18,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
@@ -32,6 +32,7 @@ public class TestLoadersTest {
                 .addNodes(new GetShopInfo())
                 .setExecTimeout(3000L)
                 .addHooks(new ProcessorHook<MainParam, MainPage>() {
+
                     @Override
                     public void beforeNodeExec(String name, MainParam initParam, MainPage result, LoadContext loadContext) {
                         System.out.println("Starting execution of node: " + name + " at " + LocalDateTime.now());
@@ -66,14 +67,27 @@ public class TestLoadersTest {
                     public void afterFallback(String name, MainParam initParam, MainPage result, Throwable e, LoadContext loadContext, ExecResult loaderExecResult) {
 
                     }
+
+                    @Override
+                    public void onEveryError(String name, MainParam initParam, MainPage result, LoadContext context, Throwable e, RunPoi runPoi) {
+
+                    }
+
+
                 })
      //           .setExecutors(Collections.singletonList(Executors.newFixedThreadPool(16)))
                 .ensure();
 
         MainPage initResp = new MainPage();
-        builder.buildResp(MainParam.builder().lat("123.12").lng("32.s").appType(1).build(), initResp);
+        //由于节点设计，有概率报错
+        try{
+            builder.buildResp(MainParam.builder().lat("123.12").lng("32.s").appType(1).build(), initResp);
+            System.out.println(JSONUtil.toJson(initResp));
 
-        System.out.println(JSONUtil.toJson(initResp));
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
     }
 
 
@@ -125,7 +139,7 @@ public class TestLoadersTest {
        System.out.println(execLog.showExeLog());
     }
 
-    public static class MainLoader implements ProcessNode<MainParam, MainPage>{
+    public static class MainLoader implements ProcessNode<MainParam, MainPage> {
 
         @Override
         public Object process(MainParam param, MainPage resp, LoadContext context) {
