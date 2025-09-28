@@ -1,15 +1,15 @@
 package test.oraen.box.loader.loader;
 
-import oraen.box.common.util.JSONUtil;
-import oraen.box.common.util.ListUtil;
-import oraen.box.common.util.RandomUtil;
-import oraen.box.common.util.ThreadUtil;
-import oraen.box.loader.*;
-import oraen.box.loader.core.CommonLoaderHandler;
-import oraen.box.loader.core.CommonMapDataLoaderContainer;
-import oraen.box.loader.core.LoadUtil;
-import oraen.box.loader.extend.ParallelDataBuilder;
-import oraen.box.loader.extend.ProcessNode;
+import com.oraen.box.loader.*;
+import com.oraen.box.common.util.JSONUtil;
+import com.oraen.box.common.util.ListUtil;
+import com.oraen.box.common.util.RandomUtil;
+import com.oraen.box.common.util.ThreadUtil;
+import com.oraen.box.loader.core.CommonLoaderHandler;
+import com.oraen.box.loader.core.CommonMapDataLoaderContainer;
+import com.oraen.box.loader.core.LoadUtil;
+import com.oraen.box.loader.extend.ParallelDataBuilder;
+import com.oraen.box.loader.extend.ProcessNode;
 import org.apache.commons.lang3.RandomUtils;
 import org.junit.jupiter.api.Test;
 import test.oraen.box.loader.entry.*;

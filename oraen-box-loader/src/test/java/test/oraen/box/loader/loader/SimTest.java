@@ -4,11 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import oraen.box.common.util.JSONUtil;
-import oraen.box.common.util.ListUtil;
-import oraen.box.loader.LoadContext;
-import oraen.box.loader.extend.ParallelDataBuilder;
-import oraen.box.loader.extend.ProcessNode;
+import com.oraen.box.common.util.JSONUtil;
+import com.oraen.box.common.util.ListUtil;
+import com.oraen.box.loader.LoadContext;
+import com.oraen.box.loader.extend.ParallelDataBuilder;
+import com.oraen.box.loader.extend.ProcessNode;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
