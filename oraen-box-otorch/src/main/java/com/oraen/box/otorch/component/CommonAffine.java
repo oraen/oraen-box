@@ -60,8 +60,6 @@ public class CommonAffine implements Affine {
 
 
         for (int i = 0; i < batchSize; i++) {
-            // 手动设置 single 的 lastInput
-            this.lastInput = new double[][] { lastInput[i] };
             double[] gradInputItem = backward(oTorchContext, gradOutputBatch[i], lastInput[i]);
             gradInput[i] = gradInputItem;
 
