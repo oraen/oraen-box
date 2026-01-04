@@ -40,6 +40,7 @@
   <modules>
     <module>oraen-box-common</module>
     <module>oraen-box-loader</module>
+    <module>oraen-box-otorch</module>
   </modules>
 
   <dependencyManagement>
