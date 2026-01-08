@@ -1,58 +1,60 @@
 package com.oraen.box.otorch.component;
 
-import com.oraen.box.otorch.Affine;
-import com.oraen.box.otorch.AffineGradientsMsg;
-import com.oraen.box.otorch.OTorchContext;
+import com.oraen.box.otorch.AffineLayer;
+import com.oraen.box.otorch.GradientsMsg;
 import com.oraen.box.otorch.ParamInitializer;
+import com.oraen.box.otorch.GradOptimizer;
 import lombok.Getter;
+import lombok.Setter;
 
 
 @Getter
-public class CommonAffine implements Affine {
-    private final int inputDim;
-    private final int outputDim;
-    private final double[][] weight;
-    private final double[] bias;
+public class CommonAffineLayer extends AffineLayer {
     // forward 时缓存
-    private double[][] lastInput;
+    private double[][] lastForwardInput;
+
+    // backwardBatch 时缓存
+    private double[][] lastGradOutputBatch;
+
+    private final ParamInitializer paramInitializer;
+
+    @Setter
+    private GradOptimizer gradOptimizer;
 
 
-    public CommonAffine(int inputDim, int outputDim, ParamInitializer paramInitializer) {
-        this.inputDim = inputDim;
-        this.outputDim = outputDim;
-        this.weight = new double[outputDim][inputDim];
-        this.bias = new double[outputDim];
+    public CommonAffineLayer(int inputDim, int outputDim, ParamInitializer paramInitializer, GradOptimizer gradOptimizer) {
+        super(inputDim, outputDim);
+        this.paramInitializer = paramInitializer;
+        this.gradOptimizer = gradOptimizer;
         paramInitializer.initializeWeights(this.weight);
         paramInitializer.initializeBiases(this.bias);
     }
 
 
-
     /**
      * 前向传播
-     * @param oTorchContext
      * @param data
      * @return
      */
-    public double[][] forwardBatch(OTorchContext oTorchContext, double[][] data) {
+    public double[][] forwardBatch(double[][] data) {
         int dataSize = data.length;
 
         double[][] out = new double[dataSize][];
 
         for(int i = 0; i < dataSize; i++) {
-            out[i] = forward(oTorchContext, data[i]);
+            out[i] = forward(data[i]);
         }
 
-        this.lastInput = data;
+        this.lastForwardInput = data;
 
         return out;
     }
 
 
 
-    public double[][] backwardBatch(OTorchContext oTorchContext, double[][] gradOutputBatch) {
+    public double[][] backwardBatch( double[][] gradOutputBatch) {
         int batchSize = gradOutputBatch.length;
-        if(lastInput == null || batchSize != lastInput.length) {
+        if(lastForwardInput == null || batchSize != lastForwardInput.length) {
             throw new IllegalArgumentException("gradOutput batch size does not match lastInput batch size.");
         }
 
@@ -60,42 +62,39 @@ public class CommonAffine implements Affine {
 
 
         for (int i = 0; i < batchSize; i++) {
-            double[] gradInputItem = backward(oTorchContext, gradOutputBatch[i], lastInput[i]);
+            double[] gradInputItem = backward(gradOutputBatch[i], lastForwardInput[i]);
             gradInput[i] = gradInputItem;
 
         }
+
+        this.lastGradOutputBatch = gradOutputBatch;
 
         return gradInput;
     }
 
 
+
     @Override
-    public AffineGradientsMsg getGradientsMsg(OTorchContext oTorchContext, double[][] outputGradients) {
+    public void updateParameters() {
+        GradientsMsg gradientsMsg = getGradientsMsg(lastGradOutputBatch);
+        gradOptimizer.applyGradients(this.weight, this.bias, gradientsMsg);
+
+    }
+
+    private GradientsMsg getGradientsMsg(double[][] outputGradients) {
         int batchSIze = outputGradients.length;
-        double[][] gradWeight = new double[outputDim][inputDim];
-        double[] gradBias = new double[outputDim];
+        GradientsMsg re = new GradientsMsg(new double[outputDim][inputDim], new double[outputDim]);
 
         for(int i = 0; i < batchSIze; i ++) {
-            AffineGradientsMsg layerGradients = getGradientsMsg(oTorchContext, outputGradients[i], lastInput[i]);
+            GradientsMsg layerGradients = getGradientsMsg(outputGradients[i], lastForwardInput[i]);
             // 累加参数梯度
-            for (int j = 0; j < outputDim; j++) {
-                gradBias[j] += layerGradients.getGradBiases()[j];
-                for (int k = 0; k < inputDim; k++) {
-                    gradWeight[j][k] += layerGradients.getGradWeights()[j][k];
-                }
-            }
+            re.plus(layerGradients);
         }
-
-        return new AffineGradientsMsg(gradWeight, gradBias);
-    }
-
-    @Override
-    public void applyGradients(OTorchContext oTorchContext, AffineGradientsMsg gradients) {
-
+        return re;
     }
 
 
-    private AffineGradientsMsg getGradientsMsg(OTorchContext oTorchContext, double[] gradOutput, double[] input) {
+    private GradientsMsg getGradientsMsg(double[] gradOutput, double[] input) {
         double[][] gradWeight = new double[outputDim][inputDim];
         double[] gradBias = new double[outputDim];
 
@@ -107,17 +106,16 @@ public class CommonAffine implements Affine {
             gradBias[j] = gradOutput[j];
         }
 
-        return new AffineGradientsMsg(gradWeight, gradBias);
+        return new GradientsMsg(gradWeight, gradBias);
     }
 
 
     /**
      * 前向传播
-     * @param oTorchContext
      * @param data
      * @return
      */
-    private double[] forward(OTorchContext oTorchContext, double[] data) {
+    private double[] forward(double[] data) {
         int dataDim = data.length;
         if(dataDim != inputDim) {
             throw new IllegalArgumentException("Input data dimension does not match affine layer input dimension.");
@@ -137,7 +135,7 @@ public class CommonAffine implements Affine {
         return out;
     }
 
-    private double[] backward(OTorchContext oTorchContext, double[] gradOutput, double[] input) {
+    private double[] backward(double[] gradOutput, double[] input) {
         if (gradOutput.length != outputDim) {
             throw new IllegalArgumentException("gradOutput dimension mismatch");
         }
