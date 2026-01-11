@@ -1,7 +1,6 @@
 package com.oraen.box.otorch.optimizer;
 
 import com.oraen.box.otorch.GradOptimizer;
-import com.oraen.box.otorch.GradientsMsg;
 import lombok.Data;
 import lombok.Getter;
 
@@ -96,22 +95,15 @@ public class AdamOptimizer implements GradOptimizer {
 
 
     @Override
-    public void applyGradients(double[][] weight,
-                               double[] bias,
-                               GradientsMsg gradientsMsg) {
-        t++;
-        double[][] gradW = gradientsMsg.getGradWeights();
-        double[]   gradB = gradientsMsg.getGradBiases();
-
-        // -------- 更新权重 --------
+    public void applyGradients(double[][] weight, double[][] gradWeight) {
         for (int i = 0; i < weight.length; i++) {
             for (int j = 0; j < weight[i].length; j++) {
 
                 // 1. 动量累计
                 // 历史梯度方向
-                mW[i][j] = beta1 * mW[i][j] + (1 - beta1) * gradW[i][j];
+                mW[i][j] = beta1 * mW[i][j] + (1 - beta1) * gradWeight[i][j];
                 // 历史梯度幅值
-                vW[i][j] = beta2 * vW[i][j] + (1 - beta2) * gradW[i][j] * gradW[i][j];
+                vW[i][j] = beta2 * vW[i][j] + (1 - beta2) * gradWeight[i][j] * gradWeight[i][j];
 
                 // 2. 偏差修正
                 double mHat = mW[i][j] / (1 - Math.pow(beta1, t));
@@ -121,15 +113,21 @@ public class AdamOptimizer implements GradOptimizer {
                 weight[i][j] -= learningRate * mHat / Math.sqrt(vHat + eps);
             }
 
+        }
+    }
+
+    @Override
+    public void applyGradients(double[] bias, double[] gradBias) {
+        for (int i = 0; i < bias.length; i++) {
+
             // -------- 更新偏置 --------
-            mB[i] = beta1 * mB[i] + (1 - beta1) * gradB[i];
-            vB[i] = beta2 * vB[i] + (1 - beta2) * gradB[i] * gradB[i];
+            mB[i] = beta1 * mB[i] + (1 - beta1) * gradBias[i];
+            vB[i] = beta2 * vB[i] + (1 - beta2) * gradBias[i] * gradBias[i];
 
             double mHatB = mB[i] / (1 - Math.pow(beta1, t));
             double vHatB = vB[i] / (1 - Math.pow(beta2, t));
 
             bias[i] -= learningRate * mHatB / Math.sqrt(vHatB + eps);
         }
-
     }
 }

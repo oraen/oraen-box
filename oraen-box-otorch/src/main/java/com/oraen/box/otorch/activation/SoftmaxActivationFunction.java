@@ -58,7 +58,7 @@ public class SoftmaxActivationFunction implements ActivationFunction {
     }
 
     @Override
-    public double[] derivative(double[] inputs) {
+    public double[] derivative(double[] input) {
         if (upstreamGradient == null) {
             throw new IllegalStateException(
                     "Upstream gradient (dL/dY) is not set for SoftmaxActivationFunction"

@@ -1,7 +1,6 @@
 package com.oraen.box.otorch.optimizer;
 
 import com.oraen.box.otorch.GradOptimizer;
-import com.oraen.box.otorch.GradientsMsg;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -61,33 +60,26 @@ public class AdaGradOptimizer implements GradOptimizer {
         this.hB = new double[outputDim];
     }
 
-    /**
-     * //应用梯度
-     * //权重与偏置分别按 AdaGrad 规则缩放
-     */
+
+
     @Override
-    public void applyGradients(double[][] weight,
-                               double[] bias,
-                               GradientsMsg gradientsMsg) {
-
-        double[][] gradW = gradientsMsg.getGradWeights();
-        double[]   gradB = gradientsMsg.getGradBiases();
-
-        // -------- 更新权重 --------
+    public void applyGradients(double[][] weight, double[][] gradWeight) {
         for (int i = 0; i < outputDim; i++) {
             for (int j = 0; j < inputDim; j++) {
                 // 梯度平方累计（与方向无关）
-                hW[i][j] += gradW[i][j] * gradW[i][j];
+                hW[i][j] += gradWeight[i][j] * gradWeight[i][j];
                 // 按历史强度缩放
-                weight[i][j] -= learningRate * gradW[i][j] / Math.sqrt(hW[i][j] + eps);
+                weight[i][j] -= learningRate * gradWeight[i][j] / Math.sqrt(hW[i][j] + eps);
             }
         }
+    }
 
-        // -------- 更新偏置 --------
+    @Override
+    public void applyGradients(double[] bias, double[] gradBias) {
         for (int i = 0; i < outputDim; i++) {
             // bias 的梯度平方累计
-            hB[i] += gradB[i] * gradB[i];
-            bias[i] -= learningRate * gradB[i] / Math.sqrt(hB[i] + eps);
+            hB[i] += gradBias[i] * gradBias[i];
+            bias[i] -= learningRate * gradBias[i] / Math.sqrt(hB[i] + eps);
         }
     }
 }

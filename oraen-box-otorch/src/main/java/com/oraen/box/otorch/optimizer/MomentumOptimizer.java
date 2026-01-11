@@ -1,7 +1,6 @@
 package com.oraen.box.otorch.optimizer;
 
 import com.oraen.box.otorch.GradOptimizer;
-import com.oraen.box.otorch.GradientsMsg;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -34,20 +33,20 @@ public class MomentumOptimizer implements GradOptimizer {
         this(outputDim, inputDim, 0.01, 0.9);
     }
 
-
-
     @Override
-    public void applyGradients(double[][] weight, double[] bias, GradientsMsg gradientsMsg) {
-        double[][] gradW = gradientsMsg.getGradWeights();
-        double[] gradB = gradientsMsg.getGradBiases();
-
+    public void applyGradients(double[][] weight, double[][] gradWeight) {
         for (int i = 0; i < outputDim; i++) {
             for (int j = 0; j < inputDim; j++) {
-                vW[i][j] = momentum * vW[i][j] + gradW[i][j];
+                vW[i][j] = momentum * vW[i][j] + gradWeight[i][j];
                 weight[i][j] -= learningRate * vW[i][j];
             }
+        }
+    }
 
-            vB[i] = momentum * vB[i] + gradB[i];
+    @Override
+    public void applyGradients(double[] bias, double[] gradBias) {
+        for (int i = 0; i < outputDim; i++) {
+            vB[i] = momentum * vB[i] + gradBias[i];
             bias[i] -= learningRate * vB[i];
         }
     }

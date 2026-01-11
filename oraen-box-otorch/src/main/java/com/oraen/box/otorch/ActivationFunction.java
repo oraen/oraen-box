@@ -4,5 +4,5 @@ public interface ActivationFunction {
 
     double[] activate(double[] input);
 
-    double[] derivative(double[] inputs);
+    double[] derivative(double[] input);
 }

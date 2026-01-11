@@ -2,7 +2,9 @@ package com.oraen.box.otorch.activation;
 
 import com.oraen.box.otorch.ActivationFunction;
 import com.oraen.box.otorch.Layer;
+import lombok.Getter;
 
+@Getter
 public class ActivationLayerAdapter implements Layer<double[], double[]> {
 
     private final ActivationFunction activationFunction;
@@ -32,11 +34,6 @@ public class ActivationLayerAdapter implements Layer<double[], double[]> {
     @Override
     public double[][] backwardBatch(double[][] gradOutputBatch) {
 
-        if (cachedInputBatch == null) {
-            throw new IllegalStateException(
-                    "forwardBatch must be called before backwardBatch"
-            );
-        }
 
         int batchSize = gradOutputBatch.length;
         int inputDim = cachedInputBatch[0].length;

@@ -1,9 +1,9 @@
 package com.oraen.box.otorch.component;
 
 import com.oraen.box.otorch.AffineLayer;
-import com.oraen.box.otorch.GradientsMsg;
 import com.oraen.box.otorch.ParamInitializer;
 import com.oraen.box.otorch.GradOptimizer;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -21,6 +21,9 @@ public class CommonAffineLayer extends AffineLayer {
     @Setter
     private GradOptimizer gradOptimizer;
 
+    private double[][] gradWeight;
+
+    private double[] gradBias;
 
     public CommonAffineLayer(int inputDim, int outputDim, ParamInitializer paramInitializer, GradOptimizer gradOptimizer) {
         super(inputDim, outputDim);
@@ -28,8 +31,9 @@ public class CommonAffineLayer extends AffineLayer {
         this.gradOptimizer = gradOptimizer;
         paramInitializer.initializeWeights(this.weight);
         paramInitializer.initializeBiases(this.bias);
+        this.gradWeight = new double[outputDim][inputDim];
+        this.gradBias = new double[outputDim];
     }
-
 
     /**
      * 前向传播
@@ -54,21 +58,17 @@ public class CommonAffineLayer extends AffineLayer {
 
     public double[][] backwardBatch( double[][] gradOutputBatch) {
         int batchSize = gradOutputBatch.length;
-        if(lastForwardInput == null || batchSize != lastForwardInput.length) {
-            throw new IllegalArgumentException("gradOutput batch size does not match lastInput batch size.");
-        }
 
         double[][] gradInput = new double[batchSize][inputDim];
 
 
         for (int i = 0; i < batchSize; i++) {
-            double[] gradInputItem = backward(gradOutputBatch[i], lastForwardInput[i]);
+            double[] gradInputItem = backward(gradOutputBatch[i]);
             gradInput[i] = gradInputItem;
-
         }
 
         this.lastGradOutputBatch = gradOutputBatch;
-
+        updateGradientsMsg(gradOutputBatch);
         return gradInput;
     }
 
@@ -76,37 +76,30 @@ public class CommonAffineLayer extends AffineLayer {
 
     @Override
     public void updateParameters() {
-        GradientsMsg gradientsMsg = getGradientsMsg(lastGradOutputBatch);
-        gradOptimizer.applyGradients(this.weight, this.bias, gradientsMsg);
-
+        gradOptimizer.applyGradients(weight, bias, gradWeight, gradBias);
+        resetGradients();
     }
 
-    private GradientsMsg getGradientsMsg(double[][] outputGradients) {
+    private void resetGradients() {
+        this.gradWeight = new double[outputDim][inputDim];
+        this.gradBias = new double[outputDim];
+    }
+
+    private void updateGradientsMsg(double[][] outputGradients) {
         int batchSIze = outputGradients.length;
-        GradientsMsg re = new GradientsMsg(new double[outputDim][inputDim], new double[outputDim]);
-
         for(int i = 0; i < batchSIze; i ++) {
-            GradientsMsg layerGradients = getGradientsMsg(outputGradients[i], lastForwardInput[i]);
-            // 累加参数梯度
-            re.plus(layerGradients);
+            updateGradientsMsg(outputGradients[i], lastForwardInput[i]);
         }
-        return re;
     }
 
-
-    private GradientsMsg getGradientsMsg(double[] gradOutput, double[] input) {
-        double[][] gradWeight = new double[outputDim][inputDim];
-        double[] gradBias = new double[outputDim];
-
+    private void updateGradientsMsg(double[] gradOutput, double[] input) {
         // gradWeight = gradOutput ⊗ lastInput
         for (int j = 0; j < outputDim; j++) {
             for (int k = 0; k < inputDim; k++) {
-                gradWeight[j][k] = gradOutput[j] * input[k];
+                gradWeight[j][k] += gradOutput[j] * input[k];
             }
-            gradBias[j] = gradOutput[j];
+            gradBias[j] += gradOutput[j];
         }
-
-        return new GradientsMsg(gradWeight, gradBias);
     }
 
 
@@ -135,7 +128,7 @@ public class CommonAffineLayer extends AffineLayer {
         return out;
     }
 
-    private double[] backward(double[] gradOutput, double[] input) {
+    private double[] backward(double[] gradOutput) {
         if (gradOutput.length != outputDim) {
             throw new IllegalArgumentException("gradOutput dimension mismatch");
         }
