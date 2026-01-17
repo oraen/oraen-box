@@ -2,6 +2,7 @@ package com.oraen.box.otorch.initializer;
 
 public class XavierUniformInitializer extends RandomInitializer{
 
+    public static final XavierUniformInitializer INSTANCE = new XavierUniformInitializer();
 
     @Override
     double getNextRandom(int fanOut, int fanIn) {

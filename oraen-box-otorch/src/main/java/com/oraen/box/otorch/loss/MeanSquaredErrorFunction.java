@@ -10,9 +10,6 @@ public class MeanSquaredErrorFunction implements LossFunction {
 
     @Override
     public double computeLoss(double[] predicted, double[] actual) {
-        if (predicted.length != actual.length) {
-            throw new IllegalArgumentException("Predicted and actual arrays must have the same length.");
-        }
         double sumSquaredError = 0.0;
         for (int i = 0; i < predicted.length; i++) {
             double error = predicted[i] - actual[i];

@@ -6,6 +6,8 @@ import lombok.Data;
 @Data
 public class SGDOptimizer implements GradOptimizer {
 
+    public final static SGDOptimizer DEFAULT = new SGDOptimizer(0.01);
+
     private double learningRate;
 
     public SGDOptimizer(double learningRate) {

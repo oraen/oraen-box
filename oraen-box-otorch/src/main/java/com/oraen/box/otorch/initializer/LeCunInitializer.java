@@ -10,6 +10,8 @@ import java.util.Random;
  */
 public class LeCunInitializer extends RandomInitializer{
 
+    public static final LeCunInitializer INSTANCE = new LeCunInitializer();
+
     @Override
     double getNextRandom(int fanOut, int fanIn) {
         double stdDev = Math.sqrt(1.0 / fanIn);

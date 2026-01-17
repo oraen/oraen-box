@@ -2,6 +2,8 @@ package com.oraen.box.otorch.initializer;
 
 public class HeUniformInitializer extends RandomInitializer{
 
+    public static final HeUniformInitializer INSTANCE = new HeUniformInitializer();
+
     public HeUniformInitializer(){
         super(0.01);
     }

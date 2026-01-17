@@ -6,6 +6,7 @@ import lombok.Setter;
 
 /**
  * AdaGrad 自适应梯度优化器
+ * AdaGrad 会类加所有历史梯度的平方做分母，最终步幅越来越小趋近与0
  */
 @Getter
 public class AdaGradOptimizer implements GradOptimizer {

@@ -71,7 +71,13 @@ public class AdamOptimizer implements GradOptimizer {
      *      vHat = v/(1-β2^t)
      *      解决早期历史从0起步的有偏估计问题
      */
-    private int t = 0;
+    private int tW = 0;
+    private int tB = 0;
+
+    private double beta1PowTw = 1.0;
+    private double beta2PowTw = 1.0;
+    private double beta1PowTb = 1.0;
+    private double beta2PowTb = 1.0;
 
     private double eps = 1e-8;
 
@@ -96,6 +102,10 @@ public class AdamOptimizer implements GradOptimizer {
 
     @Override
     public void applyGradients(double[][] weight, double[][] gradWeight) {
+        tW ++;
+        //避免每次Math.pow(beta1, tW)浪费性能
+        beta1PowTw *= beta1;
+        beta2PowTw *= beta2;
         for (int i = 0; i < weight.length; i++) {
             for (int j = 0; j < weight[i].length; j++) {
 
@@ -106,11 +116,11 @@ public class AdamOptimizer implements GradOptimizer {
                 vW[i][j] = beta2 * vW[i][j] + (1 - beta2) * gradWeight[i][j] * gradWeight[i][j];
 
                 // 2. 偏差修正
-                double mHat = mW[i][j] / (1 - Math.pow(beta1, t));
-                double vHat = vW[i][j] / (1 - Math.pow(beta2, t));
+                double mHat = mW[i][j] / (1 - beta1PowTw);
+                double vHat = vW[i][j] / (1 - beta2PowTw);
 
                 // 3. 应用
-                weight[i][j] -= learningRate * mHat / Math.sqrt(vHat + eps);
+                weight[i][j] -= learningRate * mHat / (Math.sqrt(vHat) + eps);
             }
 
         }
@@ -118,16 +128,20 @@ public class AdamOptimizer implements GradOptimizer {
 
     @Override
     public void applyGradients(double[] bias, double[] gradBias) {
+        tB ++;
+        beta1PowTb *= beta1;
+        beta2PowTb *= beta2;
+
         for (int i = 0; i < bias.length; i++) {
 
             // -------- 更新偏置 --------
             mB[i] = beta1 * mB[i] + (1 - beta1) * gradBias[i];
             vB[i] = beta2 * vB[i] + (1 - beta2) * gradBias[i] * gradBias[i];
 
-            double mHatB = mB[i] / (1 - Math.pow(beta1, t));
-            double vHatB = vB[i] / (1 - Math.pow(beta2, t));
+            double mHatB = mB[i] / (1 - beta1PowTb);
+            double vHatB = vB[i] / (1 - beta2PowTb);
 
-            bias[i] -= learningRate * mHatB / Math.sqrt(vHatB + eps);
+            bias[i] -= learningRate * mHatB / (Math.sqrt(vHatB) + eps);
         }
     }
 }

@@ -29,6 +29,12 @@ public abstract class RandomInitializer implements ParamInitializer {
         this.biasValue = biasValue;
     }
 
+    /**
+     *
+     * @param fanOut 输出维度
+     * @param fanIn 输入维度
+     * @return
+     */
     abstract double getNextRandom(int fanOut, int fanIn);
 
 

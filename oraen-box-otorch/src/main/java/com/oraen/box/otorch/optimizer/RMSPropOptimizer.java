@@ -41,7 +41,7 @@ public class RMSPropOptimizer implements GradOptimizer {
             for (int j = 0; j < inputDim; j++) {
                 //先块后慢，如果beta是0.9. 第一次训练就是1/SQRT 0.1 倍速，大约3.16倍速，后面会越来越慢
                 sW[i][j] = beta * sW[i][j] + (1 - beta) * gradWeight[i][j] * gradWeight[i][j];
-                weight[i][j] -= learningRate * gradWeight[i][j] / Math.sqrt(sW[i][j] + eps);
+                weight[i][j] -= learningRate * gradWeight[i][j] / (Math.sqrt(sW[i][j]) + eps);
             }
         }
     }
@@ -51,7 +51,7 @@ public class RMSPropOptimizer implements GradOptimizer {
         for (int i = 0; i < outputDim; i++) {
             // 偏置
             sB[i] = beta * sB[i] + (1 - beta) * gradBias[i] * gradBias[i];
-            bias[i] -= learningRate * gradBias[i] / Math.sqrt(sB[i] + eps);
+            bias[i] -= learningRate * gradBias[i] / (Math.sqrt(sB[i]) + eps);
         }
     }
 }
