@@ -10,73 +10,20 @@ import java.util.*;
  */
 public class BPETokenizer implements Tokenizer {
 
-    /** (tokenIdA, tokenIdB) -> merge rank (lower = higher priority) */
-    protected final Map<IntPair, Integer> bpeRanks;
+    BPEVocabInfo BPEVocabInfo;
 
-    /** token string -> token id */
-    protected final Map<String, Integer> vocab;
-
-    /** token id -> token string */
-    protected final String[] idToToken;
-
-    protected final int padId;
-    protected final int bosId;
-    protected final int eosId;
-    protected final int unkId;
-
-    protected final String unkToken;
-    protected final String wordBoundary;
-
-    public BPETokenizer(
-            Map<IntPair, Integer> bpeRanks,
-            Map<String, Integer> vocab,
-            int padId,
-            int bosId,
-            int eosId,
-            int unkId,
-            String unkToken,
-            String wordBoundary
-    ) {
-        this.bpeRanks = bpeRanks;
-        this.vocab = vocab;
-        this.padId = padId;
-        this.bosId = bosId;
-        this.eosId = eosId;
-        this.unkId = unkId;
-        this.unkToken = unkToken;
-        this.wordBoundary = wordBoundary;
-
-        int maxId = Collections.max(vocab.values());
-        this.idToToken = new String[maxId + 1];
-        for (Map.Entry<String, Integer> e : vocab.entrySet()) {
-            idToToken[e.getValue()] = e.getKey();
-        }
+    public BPETokenizer(BPEVocabInfo BPEVocabInfo) {
+        this.BPEVocabInfo = BPEVocabInfo;
     }
-
-    // =========================
-    // Encode
-    // =========================
 
     @Override
     public int[] encode(String text) {
         List<Integer> output = new ArrayList<>();
 
-        int i = 0;
-        int n = text.length();
+        // 按一个或多个空白字符切分，自动忽略前导/中间/尾随空白
+        String[] words = text.split("\\s+");
 
-        while (i < n) {
-            // skip whitespace
-            while (i < n && Character.isWhitespace(text.charAt(i))) {
-                i++;
-            }
-            if (i >= n) break;
-
-            int start = i;
-            while (i < n && !Character.isWhitespace(text.charAt(i))) {
-                i++;
-            }
-
-            String word = text.substring(start, i);
+        for (String word : words) {
             output.addAll(encodeWord(word));
         }
 
@@ -84,15 +31,12 @@ public class BPETokenizer implements Tokenizer {
     }
 
     protected List<Integer> encodeWord(String word) {
+        int wordBoundaryId = BPEVocabInfo.getWordBoundaryId();
+        int unkId = BPEVocabInfo.getUnkId();
+        Map<String, Integer> vocab = BPEVocabInfo.getVocab();
+
         List<Integer> symbols = new ArrayList<>();
-
-        // word boundary as a standalone symbol
-        Integer wbId = vocab.get(wordBoundary);
-        if (wbId == null) {
-            throw new IllegalStateException("wordBoundary token not in vocab");
-        }
-        symbols.add(wbId);
-
+        symbols.add(wordBoundaryId);
         // character-level init
         for (char c : word.toCharArray()) {
             String s = String.valueOf(c);
@@ -105,66 +49,64 @@ public class BPETokenizer implements Tokenizer {
     // =========================
     // BPE merge (ID-based)
     // =========================
-
     protected List<Integer> bpeMerge(List<Integer> symbols) {
+        Map<IntPair, Integer> bpeRanks = BPEVocabInfo.getBpeRanks();
+        Map<String, Integer> vocab = BPEVocabInfo.getVocab();
+        String[] idToToken = BPEVocabInfo.getIdToToken();
+
         while (true) {
+            // 查找最优 pair 及其首次出现位置
             IntPair bestPair = null;
             int bestRank = Integer.MAX_VALUE;
+            // 记录位置
+            int bestPos = -1;
+            int end = symbols.size() - 1;
 
-            for (int i = 0; i < symbols.size() - 1; i++) {
+            for (int i = 0; i < end; i++) {
                 IntPair pair = new IntPair(symbols.get(i), symbols.get(i + 1));
                 Integer rank = bpeRanks.get(pair);
                 if (rank == null) continue;
 
+                // 提前检查 merged 是否在 vocab 中（避免无效合并）
                 String merged = idToToken[pair.first] + idToToken[pair.second];
-                Integer mergedId = vocab.get(merged);
-                if (mergedId == null) continue;
+                if (!vocab.containsKey(merged)) continue;
 
                 if (rank < bestRank) {
                     bestRank = rank;
                     bestPair = pair;
+                    bestPos = i; // 记录位置
                 }
             }
 
             if (bestPair == null) break;
 
-            List<Integer> newSymbols = new ArrayList<>();
-            for (int i = 0; i < symbols.size(); i++) {
-                if (i < symbols.size() - 1 &&
-                        symbols.get(i) == bestPair.first &&
-                        symbols.get(i + 1) == bestPair.second) {
+            // 构建新列表：[0, bestPos) + [mergedId] + (bestPos+2, end]
+            String merged = idToToken[bestPair.first] + idToToken[bestPair.second];
+            Integer mergedId = vocab.get(merged);
 
-                    String merged = idToToken[bestPair.first] + idToToken[bestPair.second];
-                    newSymbols.add(vocab.get(merged));
-                    i++;
-                } else {
-                    newSymbols.add(symbols.get(i));
-                }
-            }
+            List<Integer> newSymbols = new ArrayList<>(symbols.size() - 1); // 预估大小
+            // 添加前半部分
+            newSymbols.addAll(symbols.subList(0, bestPos));
+            // 添加合并后的 token
+            newSymbols.add(mergedId);
+            // 添加后半部分（跳过两个元素）
+            newSymbols.addAll(symbols.subList(bestPos + 2, symbols.size()));
+
             symbols = newSymbols;
         }
         return symbols;
     }
 
-    // =========================
-    // Decode
-    // =========================
+
 
     @Override
     public String decode(int[] tokenIds) {
         StringBuilder sb = new StringBuilder();
+        String[] idToToken = BPEVocabInfo.getIdToToken();
+        String wordBoundary = BPEVocabInfo.getWordBoundary();
 
         for (int id : tokenIds) {
-            if (id < 0 || id >= idToToken.length) {
-                sb.append(unkToken);
-                continue;
-            }
-
             String token = idToToken[id];
-            if (token == null) {
-                sb.append(unkToken);
-                continue;
-            }
 
             if (token.equals(wordBoundary)) {
                 sb.append(' ');
@@ -176,12 +118,5 @@ public class BPETokenizer implements Tokenizer {
         return sb.toString().trim();
     }
 
-    // =========================
-    // Meta
-    // =========================
 
-    @Override public int vocabSize() { return vocab.size(); }
-    @Override public int padTokenId() { return padId; }
-    @Override public int bosTokenId() { return bosId; }
-    @Override public int eosTokenId() { return eosId; }
 }

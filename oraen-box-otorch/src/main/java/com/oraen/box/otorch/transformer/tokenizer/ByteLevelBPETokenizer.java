@@ -7,26 +7,20 @@ import java.util.Map;
 
 public class ByteLevelBPETokenizer extends BPETokenizer {
 
+    public static final String WORD_BOUNDARY = "Ġ";
+    public static final String UNK = "<unk>";
+
     private final ByteEncoder byteEncoder = new ByteEncoder();
 
-    public ByteLevelBPETokenizer(
-            Map<IntPair, Integer> bpeRanks,
-            Map<String, Integer> vocab
-    ) {
-        super(
-                bpeRanks,
-                vocab,
-                vocab.get("<pad>"),
-                vocab.get("<bos>"),
-                vocab.get("<eos>"),
-                vocab.get("<unk>"),
-                "<unk>",
-                "Ġ"   // GPT-2 / ByteLevel BPE 的 word boundary
-        );
+    public ByteLevelBPETokenizer(Map<IntPair, Integer> bpeRanks, Map<String, Integer> vocab) {
+        super(new BPEVocabInfo(bpeRanks, vocab, UNK, WORD_BOUNDARY));
     }
 
     @Override
     public int[] encode(String text) {
+        /**
+         * 本质就是把空格替换为"Ġ"，并且把学习字符的行为转变为学习对应字符编码（主要针对中文，标签等其他字符）
+         */
         // 1. UTF-8 bytes
         byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
 
@@ -39,13 +33,19 @@ public class ByteLevelBPETokenizer extends BPETokenizer {
 
     @Override
     public String decode(int[] tokenIds) {
-        // 1. normal BPE decode (得到 byte-level string)
-        String encoded = super.decode(tokenIds);
+        String[] idToToken = BPEVocabInfo.getIdToToken();
 
-        // 2. printable chars -> bytes
+        // 1. 直接拼接 token 字符串（不替换 Ġ！）
+        StringBuilder sb = new StringBuilder();
+        for (int id : tokenIds) {
+            sb.append(idToToken[id]); // 原样拼接
+        }
+        String encoded = sb.toString();
+
+        // 2. byte decode
         byte[] bytes = byteEncoder.decode(encoded);
 
-        // 3. bytes -> UTF-8 string
+        // 3. UTF-8 restore
         return new String(bytes, StandardCharsets.UTF_8);
     }
 }

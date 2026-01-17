@@ -135,12 +135,4 @@ public class WordPieceTokenizer implements Tokenizer {
         return sb.toString();
     }
 
-    // =========================
-    // Meta
-    // =========================
-
-    @Override public int vocabSize() { return vocab.size(); }
-    @Override public int padTokenId() { return padId; }
-    @Override public int bosTokenId() { return bosId; }
-    @Override public int eosTokenId() { return eosId; }
 }
