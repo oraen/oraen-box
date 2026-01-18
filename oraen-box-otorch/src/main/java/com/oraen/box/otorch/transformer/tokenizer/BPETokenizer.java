@@ -2,57 +2,26 @@ package com.oraen.box.otorch.transformer.tokenizer;
 
 import com.oraen.box.common.structure.IntPair;
 import com.oraen.box.otorch.transformer.Tokenizer;
+import com.oraen.box.otorch.transformer.tokenizer.vocab.BPEVocabInfo;
 
 import java.util.*;
 
 /**
  * Base BPE Tokenizer (word-level with word boundary marker)
  */
-public class BPETokenizer implements Tokenizer {
+public abstract class BPETokenizer implements Tokenizer {
 
-    BPEVocabInfo BPEVocabInfo;
+    BPEVocabInfo bpeVocabInfo;
 
-    public BPETokenizer(BPEVocabInfo BPEVocabInfo) {
-        this.BPEVocabInfo = BPEVocabInfo;
-    }
-
-    @Override
-    public int[] encode(String text) {
-        List<Integer> output = new ArrayList<>();
-
-        // 按一个或多个空白字符切分，自动忽略前导/中间/尾随空白
-        String[] words = text.split("\\s+");
-
-        for (String word : words) {
-            output.addAll(encodeWord(word));
+    public BPETokenizer(BPEVocabInfo bpeVocabInfo) {
+        if(bpeVocabInfo.getInputMode() != this.getInputMode()){
+            throw new IllegalArgumentException("BPEVocabInfo input mode mismatch. Expected: " + this.getInputMode() + ", but got: " + bpeVocabInfo.getInputMode());
         }
-
-        return output.stream().mapToInt(Integer::intValue).toArray();
+        this.bpeVocabInfo = bpeVocabInfo;
     }
 
-    protected List<Integer> encodeWord(String word) {
-        int wordBoundaryId = BPEVocabInfo.getWordBoundaryId();
-        int unkId = BPEVocabInfo.getUnkId();
-        Map<String, Integer> vocab = BPEVocabInfo.getVocab();
 
-        List<Integer> symbols = new ArrayList<>();
-        symbols.add(wordBoundaryId);
-        // character-level init
-        for (char c : word.toCharArray()) {
-            String s = String.valueOf(c);
-            symbols.add(vocab.getOrDefault(s, unkId));
-        }
-
-        return bpeMerge(symbols);
-    }
-
-    // =========================
-    // BPE merge (ID-based)
-    // =========================
     protected List<Integer> bpeMerge(List<Integer> symbols) {
-        Map<IntPair, Integer> bpeRanks = BPEVocabInfo.getBpeRanks();
-        Map<String, Integer> vocab = BPEVocabInfo.getVocab();
-        String[] idToToken = BPEVocabInfo.getIdToToken();
 
         while (true) {
             // 查找最优 pair 及其首次出现位置
@@ -64,12 +33,12 @@ public class BPETokenizer implements Tokenizer {
 
             for (int i = 0; i < end; i++) {
                 IntPair pair = new IntPair(symbols.get(i), symbols.get(i + 1));
-                Integer rank = bpeRanks.get(pair);
-                if (rank == null) continue;
+                int rank = bpeVocabInfo.getRank(pair);
+                if (rank == Integer.MAX_VALUE) continue;
 
                 // 提前检查 merged 是否在 vocab 中（避免无效合并）
-                String merged = idToToken[pair.first] + idToToken[pair.second];
-                if (!vocab.containsKey(merged)) continue;
+                String merged = bpeVocabInfo.getToken(pair.first) + bpeVocabInfo.getToken(pair.second);
+                if (!bpeVocabInfo.containsToken(merged)) continue;
 
                 if (rank < bestRank) {
                     bestRank = rank;
@@ -81,8 +50,8 @@ public class BPETokenizer implements Tokenizer {
             if (bestPair == null) break;
 
             // 构建新列表：[0, bestPos) + [mergedId] + (bestPos+2, end]
-            String merged = idToToken[bestPair.first] + idToToken[bestPair.second];
-            Integer mergedId = vocab.get(merged);
+            String merged = bpeVocabInfo.getToken(bestPair.first) + bpeVocabInfo.getToken(bestPair.second);
+            Integer mergedId = bpeVocabInfo.getId(merged);
 
             List<Integer> newSymbols = new ArrayList<>(symbols.size() - 1); // 预估大小
             // 添加前半部分
@@ -95,27 +64,6 @@ public class BPETokenizer implements Tokenizer {
             symbols = newSymbols;
         }
         return symbols;
-    }
-
-
-
-    @Override
-    public String decode(int[] tokenIds) {
-        StringBuilder sb = new StringBuilder();
-        String[] idToToken = BPEVocabInfo.getIdToToken();
-        String wordBoundary = BPEVocabInfo.getWordBoundary();
-
-        for (int id : tokenIds) {
-            String token = idToToken[id];
-
-            if (token.equals(wordBoundary)) {
-                sb.append(' ');
-            } else {
-                sb.append(token);
-            }
-        }
-
-        return sb.toString().trim();
     }
 
 

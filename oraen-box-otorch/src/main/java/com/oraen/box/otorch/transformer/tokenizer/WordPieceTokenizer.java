@@ -1,70 +1,39 @@
 package com.oraen.box.otorch.transformer.tokenizer;
 
+import com.oraen.box.common.util.JSONUtil;
 import com.oraen.box.otorch.transformer.Tokenizer;
+import com.oraen.box.otorch.transformer.tokenizer.vocab.BPEVocabInfo;
+import com.oraen.box.otorch.transformer.tokenizer.vocab.WordPieceVocabInfo;
+import com.oraen.box.otorch.transformer.tokenizer.vocab.builder.BPEWordLevelVocabInfoBuilder;
+import com.oraen.box.otorch.transformer.tokenizer.vocab.builder.WordPieceVocabInfoBuilder;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class WordPieceTokenizer implements Tokenizer {
 
-    protected final Map<String, Integer> vocab;
-    protected final String[] idToToken;
+    WordPieceVocabInfo wordPieceVocabInfo;
 
-    protected final int padId;
-    protected final int bosId;
-    protected final int eosId;
-    protected final int unkId;
-
-    protected final String unkToken;
-    protected final String continuationPrefix; // usually "##"
-
-    public WordPieceTokenizer(
-            Map<String, Integer> vocab,
-            int padId,
-            int bosId,
-            int eosId,
-            int unkId,
-            String unkToken,
-            String continuationPrefix
-    ) {
-        this.vocab = vocab;
-        this.padId = padId;
-        this.bosId = bosId;
-        this.eosId = eosId;
-        this.unkId = unkId;
-        this.unkToken = unkToken;
-        this.continuationPrefix = continuationPrefix;
-
-        int maxId = Collections.max(vocab.values());
-        this.idToToken = new String[maxId + 1];
-        for (Map.Entry<String, Integer> e : vocab.entrySet()) {
-            idToToken[e.getValue()] = e.getKey();
-        }
+    public WordPieceTokenizer(WordPieceVocabInfo wordPieceVocabInfo) {
+        this.wordPieceVocabInfo = wordPieceVocabInfo;
     }
 
-    // =========================
-    // Encode
-    // =========================
+
 
     @Override
     public int[] encode(String text) {
         List<Integer> output = new ArrayList<>();
 
-        int i = 0;
-        int n = text.length();
+        // 按空白切词
+        String[] words = text.split("\\s+");
 
-        while (i < n) {
-            while (i < n && Character.isWhitespace(text.charAt(i))) {
-                i++;
+        for (String word : words) {
+            if (!word.isEmpty()) {
+                output.addAll(encodeWord(word));
             }
-            if (i >= n) break;
-
-            int start = i;
-            while (i < n && !Character.isWhitespace(text.charAt(i))) {
-                i++;
-            }
-
-            String word = text.substring(start, i);
-            output.addAll(encodeWord(word));
         }
 
         return output.stream().mapToInt(Integer::intValue).toArray();
@@ -72,13 +41,15 @@ public class WordPieceTokenizer implements Tokenizer {
 
     protected List<Integer> encodeWord(String word) {
         List<Integer> out = new ArrayList<>();
+        String continuationPrefix = wordPieceVocabInfo.getContinuationPrefix();
+        int unkId = wordPieceVocabInfo.getUnkId();
 
         int start = 0;
         int len = word.length();
 
         while (start < len) {
             int end = len;
-            Integer bestId = null;
+            int bestId = unkId;
 
             while (start < end) {
                 String sub = word.substring(start, end);
@@ -86,53 +57,71 @@ public class WordPieceTokenizer implements Tokenizer {
                     sub = continuationPrefix + sub;
                 }
 
-                bestId = vocab.get(sub);
-                if (bestId != null) break;
-
+                bestId = wordPieceVocabInfo.getId(sub);
+                if (bestId != unkId) break;
                 end--;
             }
 
-            if (bestId == null) {
-                out.add(unkId);
+            out.add(bestId);
+            if (bestId == unkId) {
                 break;
             }
 
-            out.add(bestId);
             start = end;
         }
 
         return out;
     }
 
-    // =========================
-    // Decode
-    // =========================
 
     @Override
     public String decode(int[] tokenIds) {
         StringBuilder sb = new StringBuilder();
+        String continuationPrefix = wordPieceVocabInfo.getContinuationPrefix();
 
         for (int id : tokenIds) {
-            if (id < 0 || id >= idToToken.length) {
-                sb.append(unkToken);
-                continue;
-            }
-
-            String token = idToToken[id];
-            if (token == null) {
-                sb.append(unkToken);
-                continue;
-            }
+            //忽略出现异常id的情况，肯定是使用出了问题
+            String token = wordPieceVocabInfo.getToken(id);
 
             if (token.startsWith(continuationPrefix)) {
                 sb.append(token.substring(continuationPrefix.length()));
             } else {
-                if (sb.length() > 0) sb.append(' ');
+                sb.append(' ');
                 sb.append(token);
             }
         }
 
-        return sb.toString();
+        return sb.toString().trim();
+    }
+
+    @Override
+    public InputMode getInputMode() {
+        return InputMode.WORD;
+    }
+
+
+    public static void main(String[] args) throws IOException {
+        String testFilePath = "E:\\it\\project\\idea\\oraen-box\\oraen-box-otorch\\src\\main\\resources\\corpus\\corpus-enTest.txt";
+        String content =  new String(Files.readAllBytes(Paths.get(testFilePath)), StandardCharsets.UTF_8);
+        WordPieceVocabInfo wordpieceVocabInfo = WordPieceVocabInfoBuilder.builder()
+                .corpus(content)
+                .vocabSize(1000)
+                .unk("<|unk|>")
+                .build();
+
+        System.out.println("wordpiece VocabInfo: " + JSONUtil.toJson(wordpieceVocabInfo));
+
+        WordPieceTokenizer tokenizer = new WordPieceTokenizer(wordpieceVocabInfo);
+
+        String text = "im corki not asd, do you know?";
+        System.out.println("source: " + text);
+
+        int[] encode = tokenizer.encode(text);
+        System.out.println("encode: " + JSONUtil.toJson(encode));
+
+        String decode = tokenizer.decode(encode);
+        System.out.println("decode: " + decode);
+
     }
 
 }

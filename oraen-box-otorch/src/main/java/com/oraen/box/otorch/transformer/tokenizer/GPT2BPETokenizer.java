@@ -1,29 +1,35 @@
 package com.oraen.box.otorch.transformer.tokenizer;
 
-import com.oraen.box.common.structure.IntPair;
+import com.oraen.box.otorch.transformer.tokenizer.vocab.BPEVocabInfo;
 
-import java.util.Map;
-
-public class GPT2BPETokenizer extends BPETokenizer {
-    public static final String WORD_BOUNDARY = "Ġ";
-    public static final String UNK = "<unk>";
-
-    public GPT2BPETokenizer(Map<IntPair, Integer> bpeRanks, Map<String, Integer> vocab) {
-        super(new BPEVocabInfo(bpeRanks, vocab, UNK, WORD_BOUNDARY));
+public class GPT2BPETokenizer extends ByteLevelBPETokenizer {
+    public GPT2BPETokenizer(BPEVocabInfo bpeVocabInfo) {
+        super(bpeVocabInfo);
     }
 
-    /**
-     * GPT2BPE“把整个文本当作一个连续字符串进行 BPE 分词”，其中空格被替换为特殊符号 Ġ，从而保留词边界信息。
-     * 正因为如此，xxxĠxxx 这样的跨词组合（如 "theĠend"）会被当作整体学习和合并，这是 GPT-2 能有效建模词间关系的关键。
-     */
+
     @Override
     public int[] encode(String text) {
-        if (text.startsWith(" ")) {
-            text = WORD_BOUNDARY + text.substring(1);
-        }
-        text = text.replace(" ", WORD_BOUNDARY);
 
-        return super.encode(text);
+        String wordBoundary = bpeVocabInfo.getWordBoundary();
+
+        // GPT-2 规则 1：文本开头强制一个空格
+        if (!text.startsWith(" ")) {
+            text = " " + text;
+        }
+
+
+        // 注意：这里只处理语义，不做 byte 编码
+        String gpt2Text = text.replace(" ", wordBoundary);
+
+        // 后续流程完全复用 ByteLevelBPETokenizer
+        return super.encode(gpt2Text);
+    }
+
+    @Override
+    public String decode(int[] tokenIds) {
+        // GPT-2 的 decode 行为与 ByteLevel 是一致的
+        return super.decode(tokenIds);
     }
 
 }

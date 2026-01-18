@@ -1,8 +1,8 @@
 package com.oraen.box.otorch.transformer.tokenizer;
 
-
 import com.oraen.box.common.util.JSONUtil;
-import com.oraen.box.otorch.transformer.tokenizer.vocab.builder.BPEByteLevelVocabInfoBuilder;
+import com.oraen.box.otorch.transformer.Tokenizer;
+import com.oraen.box.otorch.transformer.tokenizer.vocab.builder.BPEWordLevelVocabInfoBuilder;
 import com.oraen.box.otorch.transformer.tokenizer.vocab.BPEVocabInfo;
 
 import java.io.IOException;
@@ -13,78 +13,89 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class ByteLevelBPETokenizer extends BPETokenizer {
+public class WordLevelBPETokenizer extends BPETokenizer {
 
-
-    public ByteLevelBPETokenizer(BPEVocabInfo bpeVocabInfo) {
-        super(bpeVocabInfo);
+    public WordLevelBPETokenizer(BPEVocabInfo BPEVocabInfo) {
+        super(BPEVocabInfo);
     }
 
     @Override
     public int[] encode(String text) {
+        List<Integer> output = new ArrayList<>();
 
-        // 2. byte -> printable chars
-        String encoded = ByteEncoder.encode(text);
+        // 按一个或多个空白字符切分，自动忽略前导/中间/尾随空白
+        String[] words = text.split("\\s+");
 
-        // 3. normal BPE encode
-        return encodeSequence(encoded).stream().mapToInt(Integer::intValue).toArray();
+        for (String word : words) {
+            output.addAll(encodeWord(word));
+        }
+
+        return output.stream().mapToInt(Integer::intValue).toArray();
     }
+
 
     @Override
     public String decode(int[] tokenIds) {
-
-        // 1. 直接拼接 token 字符串（不替换 Ġ！）
         StringBuilder sb = new StringBuilder();
+        String wordBoundary = bpeVocabInfo.getWordBoundary();
+
         for (int id : tokenIds) {
-            sb.append(bpeVocabInfo.getToken(id)); // 原样拼接
+            String token = bpeVocabInfo.getToken(id);
+
+            if (token.equals(wordBoundary)) {
+                sb.append(' ');
+            } else {
+                sb.append(token);
+            }
         }
-        String encoded = sb.toString();
 
-        // 2. byte decode
-        byte[] bytes = ByteEncoder.decode(encoded);
-
-        // 3. UTF-8 restore
-        return new String(bytes, StandardCharsets.UTF_8);
+        return sb.toString().trim();
     }
 
-    private List<Integer> encodeSequence(String seq) {
-        Map<String, Integer> vocab = bpeVocabInfo.getVocab();
-        List<Integer> symbols = new ArrayList<>();
+    @Override
+    public Tokenizer.InputMode getInputMode() {
+        return Tokenizer.InputMode.WORD;
+    }
 
+    private List<Integer> encodeWord(String seq) {
+        int wordBoundaryId = bpeVocabInfo.getWordBoundaryId();
+        int unkId = bpeVocabInfo.getUnkId();
+        Map<String, Integer> vocab = bpeVocabInfo.getVocab();
+
+        List<Integer> symbols = new ArrayList<>();
+        symbols.add(wordBoundaryId);
         // character-level init
         for (char c : seq.toCharArray()) {
             String s = String.valueOf(c);
-            symbols.add(vocab.get(s));
+            symbols.add(vocab.getOrDefault(s, unkId));
         }
 
         return bpeMerge(symbols);
     }
 
-    @Override
-    public InputMode getInputMode() {
-        return InputMode.BYTE;
-    }
-
     public static void main(String[] args) throws IOException {
         String testFilePath = "E:\\it\\project\\idea\\oraen-box\\oraen-box-otorch\\src\\main\\resources\\corpus\\corpusTest.txt";
         String content =  new String(Files.readAllBytes(Paths.get(testFilePath)), StandardCharsets.UTF_8);
-        BPEVocabInfo bpeVocabInfo = BPEByteLevelVocabInfoBuilder.builder()
+        BPEVocabInfo bpeVocabInfo = BPEWordLevelVocabInfoBuilder.builder()
                 .corpus(content)
                 .vocabSize(1000)
                 .unk("<|unk|>")
+                .wordBoundary("Ġ")
                 .build();
 
-        System.out.println("===   测试ByteLevelBPETokenizer   ===");
         System.out.println("bpeVocabInfo: " + JSONUtil.toJson(bpeVocabInfo));
 
-        ByteLevelBPETokenizer tokenizer = new ByteLevelBPETokenizer(bpeVocabInfo);
+        WordLevelBPETokenizer tokenizer = new WordLevelBPETokenizer(bpeVocabInfo);
 
         String text = "我中文名叫阿萨德，英文名叫asd，so，my name is asd，你懂吗";
         System.out.println("source: " + text);
+
         int[] encode = tokenizer.encode(text);
         System.out.println("encode: " + JSONUtil.toJson(encode));
 
         String decode = tokenizer.decode(encode);
-        System.out.println("decode: " + JSONUtil.toJson(decode));
+        System.out.println("decode: " + decode);
+
     }
+
 }

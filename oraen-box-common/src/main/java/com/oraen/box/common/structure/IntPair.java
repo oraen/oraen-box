@@ -26,4 +26,9 @@ public class IntPair {
         result = 31 * result + second;
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "[" + first + ", " + second + ']';
+    }
 }
