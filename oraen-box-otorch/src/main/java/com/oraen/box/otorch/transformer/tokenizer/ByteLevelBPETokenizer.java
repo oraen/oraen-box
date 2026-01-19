@@ -85,6 +85,6 @@ public class ByteLevelBPETokenizer extends BPETokenizer {
         System.out.println("encode: " + JSONUtil.toJson(encode));
 
         String decode = tokenizer.decode(encode);
-        System.out.println("decode: " + JSONUtil.toJson(decode));
+        System.out.println("decode: " + decode);
     }
 }

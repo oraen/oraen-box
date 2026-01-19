@@ -44,6 +44,9 @@ public class WordLevelBPETokenizer extends BPETokenizer {
 
             if (token.equals(wordBoundary)) {
                 sb.append(' ');
+            } else if (token.startsWith(wordBoundary)) {
+                sb.append(' ');
+                sb.append(token.substring(wordBoundary.length()));
             } else {
                 sb.append(token);
             }
@@ -75,6 +78,7 @@ public class WordLevelBPETokenizer extends BPETokenizer {
 
     public static void main(String[] args) throws IOException {
         String testFilePath = "E:\\it\\project\\idea\\oraen-box\\oraen-box-otorch\\src\\main\\resources\\corpus\\corpusTest.txt";
+  //      String testFilePath = "E:\\it\\project\\idea\\oraen-box\\oraen-box-otorch\\src\\main\\resources\\corpus\\corpus-enTest.txt";
         String content =  new String(Files.readAllBytes(Paths.get(testFilePath)), StandardCharsets.UTF_8);
         BPEVocabInfo bpeVocabInfo = BPEWordLevelVocabInfoBuilder.builder()
                 .corpus(content)
