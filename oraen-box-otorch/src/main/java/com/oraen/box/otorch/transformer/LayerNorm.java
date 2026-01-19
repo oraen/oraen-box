@@ -3,7 +3,12 @@ package com.oraen.box.otorch.transformer;
 import com.oraen.box.otorch.GradOptimizer;
 import com.oraen.box.otorch.Layer;
 import com.oraen.box.otorch.Learnable;
+import com.oraen.box.otorch.ParamInitializer;
+import com.oraen.box.otorch.util.MathUtil;
 import lombok.Getter;
+import lombok.Setter;
+
+import java.util.Arrays;
 
 @Getter
 public class LayerNorm implements Layer<double[], double[]>, Learnable {
@@ -20,15 +25,21 @@ public class LayerNorm implements Layer<double[], double[]>, Learnable {
     private final double[] gradBeta;
 
     // forward 缓存（用于 backward）
-    private double[][] input;
     private double[][] xHat;
-    private double[] mean;
     private double[] var;
 
+    @Setter
     // optimizer（和你其他 Learnable 一致）
     private GradOptimizer optimizer;
 
-    public LayerNorm(int dim, GradOptimizer optimizer) {
+    /**
+     *
+     * @param dim 维度
+     * @param optimizer 参数优化器
+     * @param gammaParamInitializer 参数初始化器，一般是使用ConstantInitializer， gamma都初始化为1，
+     * @param betaParamInitializer 参数初始化器，一般是使用ConstantInitializer，  beta都初始化为0
+     */
+    public LayerNorm(int dim, GradOptimizer optimizer, ParamInitializer gammaParamInitializer, ParamInitializer betaParamInitializer) {
         this.dim = dim;
         this.optimizer = optimizer;
 
@@ -37,49 +48,26 @@ public class LayerNorm implements Layer<double[], double[]>, Learnable {
         this.gradGamma = new double[dim];
         this.gradBeta = new double[dim];
 
-        // 常见初始化：gamma = 1, beta = 0
-        for (int i = 0; i < dim; i++) {
-            gamma[i] = 1.0;
-            beta[i] = 0.0;
-        }
+        gammaParamInitializer.initializeBiases(this.gamma);
+        betaParamInitializer.initializeBiases(this.beta);
     }
 
     @Override
     public double[][] forwardBatch(double[][] data) {
+        // batchSize：当前 batch 中样本数量（batch 维度）
         int batchSize = data.length;
 
-        this.input = data;
-        this.xHat = new double[batchSize][dim];
-        this.mean = new double[batchSize];
+        // xHat：归一化后的中间结果 (x - mean) / sqrt(var + eps)
+        this.xHat = new double[batchSize][];
+
+        // var：每个样本在 feature 维度上的方差
         this.var = new double[batchSize];
 
+        // output：最终前向输出
         double[][] output = new double[batchSize][dim];
 
         for (int b = 0; b < batchSize; b++) {
-            // 1. mean
-            double m = 0;
-            for (int i = 0; i < dim; i++) {
-                m += data[b][i];
-            }
-            m /= dim;
-            mean[b] = m;
-
-            // 2. variance
-            double v = 0;
-            for (int i = 0; i < dim; i++) {
-                double diff = data[b][i] - m;
-                v += diff * diff;
-            }
-            v /= dim;
-            var[b] = v;
-
-            double stdInv = 1.0 / Math.sqrt(v + eps);
-
-            // 3. normalize + scale + shift
-            for (int i = 0; i < dim; i++) {
-                xHat[b][i] = (data[b][i] - m) * stdInv;
-                output[b][i] = gamma[i] * xHat[b][i] + beta[i];
-            }
+            output[b] = forward0(data[b], b);
         }
 
         return output;
@@ -90,12 +78,6 @@ public class LayerNorm implements Layer<double[], double[]>, Learnable {
         int batchSize = gradOutputBatch.length;
 
         double[][] gradInput = new double[batchSize][dim];
-
-        // 清空参数梯度
-        for (int i = 0; i < dim; i++) {
-            gradGamma[i] = 0;
-            gradBeta[i] = 0;
-        }
 
         for (int b = 0; b < batchSize; b++) {
             double stdInv = 1.0 / Math.sqrt(var[b] + eps);
@@ -118,11 +100,7 @@ public class LayerNorm implements Layer<double[], double[]>, Learnable {
             }
 
             for (int i = 0; i < dim; i++) {
-                gradInput[b][i] = stdInv * (
-                        dxHat[i]
-                                - sumDxHat / dim
-                                - xHat[b][i] * sumDxHatXHat / dim
-                );
+                gradInput[b][i] = stdInv * (dxHat[i] - sumDxHat / dim - xHat[b][i] * sumDxHatXHat / dim);
             }
         }
 
@@ -134,5 +112,38 @@ public class LayerNorm implements Layer<double[], double[]>, Learnable {
         // gamma / beta 是向量参数
         optimizer.applyGradients(gamma, gradGamma);
         optimizer.applyGradients(beta, gradBeta);
+        clearGrad();
+    }
+
+    private void clearGrad(){
+        Arrays.fill(gradGamma, 0);
+        Arrays.fill(gradBeta, 0);
+    }
+
+
+    public double[] forward0(double[] data, int batchIndex) {
+
+        // 输出
+        double[] output = new double[dim];
+        //平均值
+        double mean = MathUtil.mean(data);
+        //方差
+        double var = MathUtil.variance(data, mean);
+        // std：标准差，用于数值稳定，eps 防止除0
+        double std = Math.sqrt(var + eps);
+
+        //归一化（normalize）+ 缩放（gamma）+ 平移（beta）
+        double[] xHat = new double[dim];
+        for (int i = 0; i < dim; i++) {
+            xHat[i] = (data[i] - mean) / std;
+            // output = gamma * xHat + beta
+            output[i] = gamma[i] * xHat[i] + beta[i];
+        }
+
+        //缓存xHat
+        this.xHat[batchIndex] = xHat;
+        this.var[batchIndex] = var;
+
+        return output;
     }
 }

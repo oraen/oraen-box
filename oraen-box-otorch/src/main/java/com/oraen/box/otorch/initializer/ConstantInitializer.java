@@ -10,6 +10,11 @@ import lombok.Data;
 public class ConstantInitializer extends RandomInitializer {
 
     double weightValue;
+
+    public ConstantInitializer(double allValue) {
+        super(allValue);
+        this.weightValue = allValue;
+    }
     
     public ConstantInitializer(double weightValue, double biasValue) {
         super(biasValue);
