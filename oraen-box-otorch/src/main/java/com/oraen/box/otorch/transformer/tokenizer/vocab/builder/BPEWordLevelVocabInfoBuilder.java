@@ -89,7 +89,7 @@ public class BPEWordLevelVocabInfoBuilder implements BPEVocabInfoBuilder{
         for (List<String> tokens : wordFreqs.keySet()) {
             for (String t : tokens) {
                 //bpeVocabInfo.addToken中会过滤重复token
-                bpeVocabInfo.addToken(t);
+                bpeVocabInfo.addTokenIfAbsent(t);
             }
         }
 
@@ -125,7 +125,7 @@ public class BPEWordLevelVocabInfoBuilder implements BPEVocabInfoBuilder{
             String merged = bpeVocabInfo.getToken(best.first) + bpeVocabInfo.getToken(best.second);
 
             // 新 token 加入 vocab
-            bpeVocabInfo.addToken(merged);
+            bpeVocabInfo.addTokenIfAbsent(merged);
 
             // 记录该 pair 的合并顺序（rank）
             bpeVocabInfo.nextRank(best);

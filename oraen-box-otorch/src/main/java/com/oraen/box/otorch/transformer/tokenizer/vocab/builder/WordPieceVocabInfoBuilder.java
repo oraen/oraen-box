@@ -8,19 +8,19 @@ import java.util.*;
 /**
  * 修正版 WordPieceVocabInfoBuilder
  *
- * 修复内容：
- * 1. 修正 tokenizeWithCurrentVocab 中的 start 更新逻辑
- * 2. 优化贪心匹配效率
- * 3. 改进高频词初始化策略
- * 4. 修复合并 token 已存在时的处理逻辑
+ * 核心修正：
+ * 1. 词表构建阶段的 tokenize 不使用 continuation prefix（##）
+ * 2. mergeTokens 直接拼接，不处理前缀
+ * 3. 初始化仅添加单字符（不加 ## 前缀）
+ * 4. 分词输出时的 ## 前缀应在推理阶段处理，不在词表构建中
  */
 public class WordPieceVocabInfoBuilder {
 
     private int vocabSize = 30000;
     private String unk = "<unk>";
-    private String continuationPrefix = "##";
+    private String continuationPrefix = "##"; // 仅用于推理阶段输出，构建阶段忽略
     private String corpus;
-    private int highFreqThreshold = 10; // 提高阈值，只加入真正高频的词
+    private int highFreqThreshold = -1;
 
     public static WordPieceVocabInfoBuilder builder() {
         return new WordPieceVocabInfoBuilder();
@@ -68,20 +68,18 @@ public class WordPieceVocabInfoBuilder {
         vocabInfo.addUnk(unk);
         vocabInfo.setContinuationPrefix(continuationPrefix);
 
-        // 2. 初始化词表：添加所有单字符
+        // 2. 初始化词表：添加所有单字符（原始形式）
         for (char c : allChars) {
-            vocabInfo.addToken(String.valueOf(c));
+            vocabInfo.addTokenIfAbsent(String.valueOf(c));
         }
 
         // 可选：加入极高频的短词（长度2-3）作为优化
-        // 这可以减少训练迭代，但要谨慎使用
-        for (Map.Entry<String, Integer> entry : wordFreqs.entrySet()) {
-            String word = entry.getKey();
-            int freq = entry.getValue();
-            // 只加入长度2-3且频率极高的词
-            if (freq >= highFreqThreshold && word.length() >= 2 && word.length() <= 3) {
-                if (!vocabInfo.containsToken(word)) {
-                    vocabInfo.addToken(word);
+        if(highFreqThreshold > 0){
+            for (Map.Entry<String, Integer> entry : wordFreqs.entrySet()) {
+                String word = entry.getKey();
+                int freq = entry.getValue();
+                if (freq >= highFreqThreshold && word.length() >= 2 && word.length() <= 3) {
+                    vocabInfo.addTokenIfAbsent(word);
                 }
             }
         }
@@ -89,7 +87,7 @@ public class WordPieceVocabInfoBuilder {
         // 3. 迭代合并子词对
         int iterations = 0;
         int maxIterations = 100000;
-        int noProgressCount = 0; // 连续无进展次数
+        int noProgressCount = 0;
 
         while (vocabInfo.getVocabSize() < vocabSize && iterations < maxIterations) {
             iterations++;
@@ -99,14 +97,14 @@ public class WordPieceVocabInfoBuilder {
             for (Map.Entry<String, Integer> entry : wordFreqs.entrySet()) {
                 String word = entry.getKey();
                 int freq = entry.getValue();
-                List<String> tokens = tokenizeWithCurrentVocab(word, vocabInfo);
+                List<String> tokens = tokenizeForBuild(word, vocabInfo); // ← 关键：使用无 ## 的 tokenize
 
                 // 统计相邻 token 对
                 for (int i = 0; i < tokens.size() - 1; i++) {
                     String first = tokens.get(i);
                     String second = tokens.get(i + 1);
 
-                    // 忽略包含 <unk> 的 pair
+                    // 忽略包含 <unk> 的 pair， 正常不会发生
                     if (first.equals(unk) || second.equals(unk)) {
                         continue;
                     }
@@ -117,121 +115,70 @@ public class WordPieceVocabInfoBuilder {
                 }
             }
 
-            // 没有可合并的 pair，退出
             if (pairFreqs.isEmpty()) {
                 break;
             }
 
             // 找出频率最高的 pair
-            IntPair bestPair = Collections.max(pairFreqs.entrySet(),
-                    Map.Entry.comparingByValue()).getKey();
+            IntPair bestPair = Collections.max(pairFreqs.entrySet(), Map.Entry.comparingByValue()).getKey();
 
             String first = vocabInfo.getToken(bestPair.first);
             String second = vocabInfo.getToken(bestPair.second);
+            String merged = mergeTokens(first, second); // ← 简单拼接
 
-            // 构造合并后的 token
-            String merged = mergeTokens(first, second);
-
-            // 如果合并后的 token 已存在，跳过这次合并，继续尝试其他 pair
+            // 如果已存在，跳过
             if (vocabInfo.containsToken(merged)) {
                 noProgressCount++;
-                // 如果连续多次无法添加新 token，可能陷入循环，退出
                 if (noProgressCount > 100) {
                     break;
                 }
                 continue;
             }
 
-            // 添加新 token
-            vocabInfo.addToken(merged);
-            noProgressCount = 0; // 重置无进展计数
+            vocabInfo.addTokenIfAbsent(merged);
+            noProgressCount = 0;
         }
 
         return vocabInfo;
     }
 
     /**
-     * 合并两个 token，处理 continuation prefix
+     * 合并两个 token：直接拼接（不处理 continuation prefix）
      */
     private String mergeTokens(String first, String second) {
-        boolean firstIsContinuation = first.startsWith(continuationPrefix);
-        boolean secondIsContinuation = second.startsWith(continuationPrefix);
-
-        // 去掉前缀
-        String cleanFirst = firstIsContinuation ?
-                first.substring(continuationPrefix.length()) : first;
-        String cleanSecond = secondIsContinuation ?
-                second.substring(continuationPrefix.length()) : second;
-
-        // 合并
-        String merged = cleanFirst + cleanSecond;
-
-        // 如果第一个 token 有 continuation prefix，合并结果也要有
-        if (firstIsContinuation) {
-            merged = continuationPrefix + merged;
-        }
-
-        return merged;
+        return first + second; // 核心修正：不再处理 ##
     }
 
     /**
-     * 使用当前词表对单词进行分词（贪心最长匹配）
-     *
-     * @param word 待分词的单词
-     * @param vocabInfo 当前词表
-     * @return 分词结果
+     * 专用于词表构建阶段的 tokenize（不使用 continuation prefix）
+     * 仅匹配词表中已有的原始 token（如 "play", "ing"）
      */
-    private List<String> tokenizeWithCurrentVocab(String word, WordPieceVocabInfo vocabInfo) {
+    private List<String> tokenizeForBuild(String word, WordPieceVocabInfo vocabInfo) {
         List<String> result = new ArrayList<>();
         int start = 0;
         int len = word.length();
 
         while (start < len) {
-            int end = len;
             String bestMatch = null;
+            int bestEnd = start + 1;
 
-            // 从最长子串开始尝试，贪心匹配
-            while (start < end) {
+            // 贪心：从最长子串开始尝试，初始化时已加入所有单字符，正常情况下end = start + 1时必有
+            for (int end = len; end > start; end--) {
                 String sub = word.substring(start, end);
-
-                // 非首个子词需要加 continuation prefix
-                if (start > 0) {
-                    sub = continuationPrefix + sub;
-                }
-
                 if (vocabInfo.containsToken(sub)) {
                     bestMatch = sub;
-                    break; // 找到最长匹配，停止
+                    bestEnd = end;
+                    break;
                 }
-
-                end--; // 缩短子串继续尝试
             }
 
+            // 理论上不应发生，因为单字符已初始化
             if (bestMatch == null) {
-                // 没找到匹配，fallback 到单字符
-                String fallback = String.valueOf(word.charAt(start));
-                if (start > 0) {
-                    fallback = continuationPrefix + fallback;
-                }
-
-                // 如果连单字符都不在词表中，使用 <unk>
-                if (vocabInfo.containsToken(fallback)) {
-                    result.add(fallback);
-                } else {
-                    result.add(unk);
-                }
-                start++;
-            } else {
-                result.add(bestMatch);
-
-                // 关键修复：正确计算前进的字符数
-                // 如果 bestMatch 有 prefix，实际字符数要减去 prefix 长度
-                int actualChars = bestMatch.startsWith(continuationPrefix) ?
-                        bestMatch.length() - continuationPrefix.length() :
-                        bestMatch.length();
-
-                start += actualChars;
+                throw new IllegalStateException("Tokenization failed at position " + start + " in word: " + word + ". This usually means single characters were not properly initialized.");
             }
+
+            result.add(bestMatch);
+            start = bestEnd;
         }
 
         return result;

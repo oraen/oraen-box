@@ -68,7 +68,7 @@ public class BPEByteLevelVocabInfoBuilder implements BPEVocabInfoBuilder{
 
         // 初始化 256 个 byte token
         for (int i = 0; i < 256; i++) {
-            bpeVocabInfo.addToken(ByteEncoder.encodeSingle((byte) i));
+            bpeVocabInfo.addTokenIfAbsent(ByteEncoder.encodeSingle((byte) i));
         }
 
         // BPE 主循环
@@ -93,7 +93,7 @@ public class BPEByteLevelVocabInfoBuilder implements BPEVocabInfoBuilder{
             // 选最高频 pair
             IntPair best = Collections.max(pairFreq.entrySet(), Map.Entry.comparingByValue()).getKey();
             String merged = bpeVocabInfo.getToken(best.first) + bpeVocabInfo.getToken(best.second);
-            bpeVocabInfo.addToken(merged);
+            bpeVocabInfo.addTokenIfAbsent(merged);
             bpeVocabInfo.nextRank(best);
 
             // 替换语料

@@ -76,34 +76,10 @@ public class LayerNorm implements Layer<double[], double[]>, Learnable {
     @Override
     public double[][] backwardBatch(double[][] gradOutputBatch) {
         int batchSize = gradOutputBatch.length;
-
         double[][] gradInput = new double[batchSize][dim];
-
         for (int b = 0; b < batchSize; b++) {
-            double stdInv = 1.0 / Math.sqrt(var[b] + eps);
-
-            // -------- 参数梯度 --------
-            for (int i = 0; i < dim; i++) {
-                gradGamma[i] += gradOutputBatch[b][i] * xHat[b][i];
-                gradBeta[i] += gradOutputBatch[b][i];
-            }
-
-            // -------- 输入梯度 --------
-            double sumDxHat = 0;
-            double sumDxHatXHat = 0;
-
-            double[] dxHat = new double[dim];
-            for (int i = 0; i < dim; i++) {
-                dxHat[i] = gradOutputBatch[b][i] * gamma[i];
-                sumDxHat += dxHat[i];
-                sumDxHatXHat += dxHat[i] * xHat[b][i];
-            }
-
-            for (int i = 0; i < dim; i++) {
-                gradInput[b][i] = stdInv * (dxHat[i] - sumDxHat / dim - xHat[b][i] * sumDxHatXHat / dim);
-            }
+            gradInput[b] = backward0(gradOutputBatch[b], b);
         }
-
         return gradInput;
     }
 
@@ -145,5 +121,37 @@ public class LayerNorm implements Layer<double[], double[]>, Learnable {
         this.var[batchIndex] = var;
 
         return output;
+    }
+
+
+    private double[] backward0(double[] gradOutput, int batchIndex) {
+        // 更新参数梯度
+        updateGrad(gradOutput, batchIndex);
+
+        double[] gradInput = new double[dim];
+        double std = Math.sqrt(var[batchIndex] + eps);
+        double sumDxHat = 0;
+        double sumDxHatXHat = 0;
+
+        double[] dxHat = new double[dim];
+        for (int i = 0; i < dim; i++) {
+            dxHat[i] = gradOutput[i] * gamma[i];
+            sumDxHat += dxHat[i];
+            sumDxHatXHat += dxHat[i] * xHat[batchIndex][i];
+        }
+
+        for(int i = 0; i < dim; i ++){
+            gradInput[i] = (dxHat[i] - sumDxHat / dim - xHat[batchIndex][i] * sumDxHatXHat / dim) / std;
+        }
+
+        return gradInput;
+    }
+
+    // 更新参数梯度
+    private void updateGrad(double[] gradOutput, int batchIndex) {
+        for (int i = 0; i < dim; i++) {
+            gradGamma[i] += gradOutput[i] * xHat[batchIndex][i];
+            gradBeta[i] += gradOutput[i];
+        }
     }
 }

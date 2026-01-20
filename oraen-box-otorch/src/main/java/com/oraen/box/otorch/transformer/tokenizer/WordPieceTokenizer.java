@@ -101,11 +101,13 @@ public class WordPieceTokenizer implements Tokenizer {
 
 
     public static void main(String[] args) throws IOException {
-        String testFilePath = "E:\\it\\project\\idea\\oraen-box\\oraen-box-otorch\\src\\main\\resources\\corpus\\corpus-enTest.txt";
+       // String testFilePath = "E:\\it\\project\\idea\\oraen-box\\oraen-box-otorch\\src\\main\\resources\\corpus\\corpus-enTest.txt";
+        String testFilePath = "/Users/corki/IdeaProjects/ad/oraen-box/oraen-box-otorch/src/main/resources/corpus/corpus-enTest.txt";
         String content =  new String(Files.readAllBytes(Paths.get(testFilePath)), StandardCharsets.UTF_8);
         WordPieceVocabInfo wordpieceVocabInfo = WordPieceVocabInfoBuilder.builder()
                 .corpus(content)
                 .vocabSize(1000)
+                .highFreqThreshold(10)
                 .unk("<|unk|>")
                 .build();
 

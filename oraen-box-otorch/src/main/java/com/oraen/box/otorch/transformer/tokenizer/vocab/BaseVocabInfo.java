@@ -49,7 +49,7 @@ public class BaseVocabInfo {
         return idToToken.get(id);
     }
 
-    public int addToken(String token){
+    public int addTokenIfAbsent(String token){
         if(vocab.containsKey(token)) return vocab.get(token);
         int newId = vocab.size();
         vocab.put(token, newId);
@@ -59,7 +59,7 @@ public class BaseVocabInfo {
 
     public void addUnk(String unkToken){
         int newId = vocab.size();
-        int tokenId = addToken(unkToken);
+        int tokenId = addTokenIfAbsent(unkToken);
         if(tokenId != newId){
             throw new IllegalArgumentException("The unk token already exists in the vocab.");
         }

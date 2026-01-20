@@ -41,7 +41,7 @@ public class BPEVocabInfo extends BaseVocabInfo {
 
     public void addWordBoundary(String wordBoundaryToken){
         int newId = vocab.size();
-        int tokenId = addToken(wordBoundaryToken);
+        int tokenId = addTokenIfAbsent(wordBoundaryToken);
         if(tokenId != newId){
             throw new IllegalArgumentException("The word boundary token already exists in the vocab.");
         }
