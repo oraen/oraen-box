@@ -30,18 +30,24 @@ public class LayerNorm implements Layer<double[], double[]>, Learnable {
 
     @Setter
     // optimizer（和你其他 Learnable 一致）
-    private GradOptimizer optimizer;
+    private GradOptimizer gammaOptimizer;
+
+    @Setter
+    // optimizer（和你其他 Learnable 一致）
+    private GradOptimizer betaOptimizer;
 
     /**
      *
      * @param dim 维度
-     * @param optimizer 参数优化器
+     * @param gammaOptimizer gamma的参数优化器
+     * @param betaOptimizer beta的参数优化器
      * @param gammaParamInitializer 参数初始化器，一般是使用ConstantInitializer， gamma都初始化为1，
      * @param betaParamInitializer 参数初始化器，一般是使用ConstantInitializer，  beta都初始化为0
      */
-    public LayerNorm(int dim, GradOptimizer optimizer, ParamInitializer gammaParamInitializer, ParamInitializer betaParamInitializer) {
+    public LayerNorm(int dim, GradOptimizer gammaOptimizer, GradOptimizer betaOptimizer, ParamInitializer gammaParamInitializer, ParamInitializer betaParamInitializer) {
         this.dim = dim;
-        this.optimizer = optimizer;
+        this.gammaOptimizer = gammaOptimizer;
+        this.betaOptimizer = betaOptimizer;
 
         this.gamma = new double[dim];
         this.beta = new double[dim];
@@ -86,8 +92,8 @@ public class LayerNorm implements Layer<double[], double[]>, Learnable {
     @Override
     public void updateParameters() {
         // gamma / beta 是向量参数
-        optimizer.applyGradients(gamma, gradGamma);
-        optimizer.applyGradients(beta, gradBeta);
+        gammaOptimizer.applyGradients(gamma, gradGamma);
+        betaOptimizer.applyGradients(beta, gradBeta);
         clearGrad();
     }
 
