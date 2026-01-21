@@ -5,27 +5,26 @@ import com.oraen.box.otorch.Learnable;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.Arrays;
-
 /**
- * Transformer Encoder Block with Pre-LayerNorm (used in LLaMA, GPT, etc.)
+ * Transformer Decoder Block for Decoder-only models (GPT, LLaMA, etc.)
  *
- * Forward:
- *   x → LN1 → SelfAttention → +x → LN2 → FFN → +x → output
+ * Architecture (Pre-LN):
+ *   x → LN1 → MaskedSelfAttention → +x → LN2 → FFN → +x → output
  *
  * Input/Output shape: [B, T, D]
  */
 @Getter
 @Setter
-public class TransformerEncoderBlock implements Layer<double[][], double[][]>, Learnable {
+public class NewTransformerDecoderBlock implements Layer<double[][], double[][]>, Learnable {
 
-    private final MultiHeadSelfAttention selfAttention;
+    private final MultiHeadSelfAttention selfAttention; // must support causal masking
     private final LayerNorm ln1;
     private final FeedForwardLayer ffn;
     private final LayerNorm ln2;
 
 
-    public TransformerEncoderBlock(
+
+    public NewTransformerDecoderBlock(
             MultiHeadSelfAttention selfAttention,
             LayerNorm ln1,
             FeedForwardLayer ffn,
@@ -43,9 +42,9 @@ public class TransformerEncoderBlock implements Layer<double[][], double[][]>, L
         int T = data[0].length;
         int D = data[0][0].length;
 
-        // ---- Pre-LN: LayerNorm -> Self-Attention -> Residual ----
+        // ---- Pre-LN: LayerNorm → Masked Self-Attention → Residual ----
         double[][][] ln1Out = reshape3D(ln1.forwardBatch(flatten(data)), B, T, D);
-        double[][][] attnOut = selfAttention.forwardBatch(ln1Out);
+        double[][][] attnOut = selfAttention.forwardBatch(ln1Out); // assumes isCausal=true
 
         double[][][] add1 = new double[B][T][D];
         for (int b = 0; b < B; b++) {
@@ -56,7 +55,7 @@ public class TransformerEncoderBlock implements Layer<double[][], double[][]>, L
             }
         }
 
-        // ---- Pre-LN: LayerNorm -> FFN -> Residual ----
+        // ---- Pre-LN: LayerNorm → FFN → Residual ----
         double[][][] ln2Out = reshape3D(ln2.forwardBatch(flatten(add1)), B, T, D);
         double[][][] ffnOut = reshape3D(ffn.forwardBatch(flatten(ln2Out)), B, T, D);
 
@@ -80,15 +79,14 @@ public class TransformerEncoderBlock implements Layer<double[][], double[][]>, L
         int D = gradOutput[0][0].length;
 
         // ---- Step 1: FFN residual backward ----
-        // gradOutput flows to both add1 and ffnOut
-        double[][][] gradAdd1 = copy(gradOutput);         // gradient to add1 (residual path)
-        double[][][] gradFfnOut = copy(gradOutput);       // gradient to ffnOut
+        double[][][] gradAdd1 = copy(gradOutput);         // to add1 (residual)
+        double[][][] gradFfnOut = copy(gradOutput);       // to ffnOut
 
-        // ---- Step 2: FFN backward ----
+        // FFN backward
         double[][] gradFlatFfn = ffn.backwardBatch(flatten(gradFfnOut));
         double[][][] gradLn2Out = reshape3D(gradFlatFfn, B, T, D);
 
-        // ---- Step 3: LN2 backward ----
+        // LN2 backward
         double[][] gradFlatAdd1FromLN2 = ln2.backwardBatch(flatten(gradLn2Out));
         double[][][] gradAdd1FromLN2 = reshape3D(gradFlatAdd1FromLN2, B, T, D);
 
@@ -101,14 +99,14 @@ public class TransformerEncoderBlock implements Layer<double[][], double[][]>, L
             }
         }
 
-        // ---- Step 4: Attention residual backward ----
-        double[][][] gradX = copy(gradAdd1);              // residual to original input
+        // ---- Step 2: Self-Attention residual backward ----
+        double[][][] gradX = copy(gradAdd1);              // to original input (residual)
         double[][][] gradAttnOut = copy(gradAdd1);        // to attention output
 
-        // ---- Step 5: Self-Attention backward ----
+        // Self-Attention backward
         double[][][] gradLn1Out = selfAttention.backwardBatch(gradAttnOut);
 
-        // ---- Step 6: LN1 backward ----
+        // LN1 backward
         double[][] gradFlatXFromLN1 = ln1.backwardBatch(flatten(gradLn1Out));
         double[][][] gradXFromLN1 = reshape3D(gradFlatXFromLN1, B, T, D);
 
@@ -172,3 +170,5 @@ public class TransformerEncoderBlock implements Layer<double[][], double[][]>, L
         return dst;
     }
 }
+
+
