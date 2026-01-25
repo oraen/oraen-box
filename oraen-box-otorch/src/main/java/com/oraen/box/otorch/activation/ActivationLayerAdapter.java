@@ -7,12 +7,12 @@ import lombok.Getter;
 @Getter
 public class ActivationLayerAdapter implements Layer<double[], double[]> {
 
-    private final ActivationFunction activationFunction;
+    private final ActivationFunctionIndependently activationFunction;
 
     /** cache forward input: shape = [batch][dim] */
     private double[][] cachedInputBatch;
 
-    public ActivationLayerAdapter(ActivationFunction activationFunction) {
+    public ActivationLayerAdapter(ActivationFunctionIndependently activationFunction) {
         this.activationFunction = activationFunction;
     }
 

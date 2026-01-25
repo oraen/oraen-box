@@ -4,6 +4,7 @@ import com.oraen.box.otorch.ActivationFunction;
 import com.oraen.box.otorch.AffineLayer;
 import com.oraen.box.otorch.Layer;
 import com.oraen.box.otorch.Learnable;
+import com.oraen.box.otorch.activation.ActivationFunctionIndependently;
 import com.oraen.box.otorch.activation.ActivationLayerAdapter;
 
 /**
@@ -15,7 +16,7 @@ public class Perception implements Layer<double[], double[]>, Learnable {
 
     ActivationLayerAdapter activationLayerAdapter;
 
-    public Perception(AffineLayer affineLayer, ActivationFunction activationFunction) {
+    public Perception(AffineLayer affineLayer, ActivationFunctionIndependently activationFunction) {
         this.affineLayer = affineLayer;
         this.activationLayerAdapter = new ActivationLayerAdapter(activationFunction);
     }

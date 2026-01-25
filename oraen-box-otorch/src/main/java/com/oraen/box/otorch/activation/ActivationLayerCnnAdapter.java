@@ -5,8 +5,7 @@ import com.oraen.box.otorch.Layer;
 import lombok.Getter;
 
 @Getter
-public class ActivationLayerCnnAdapter
-        implements Layer<double[][][], double[][][]> {
+public class ActivationLayerCnnAdapter implements Layer<double[][][], double[][][]> {
 
     private final ActivationFunction activationFunction;
 
