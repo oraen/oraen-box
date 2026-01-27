@@ -1,6 +1,7 @@
 package com.oraen.box.otorch.transformer.tokenizer;
 
 import com.oraen.box.common.util.JSONUtil;
+import com.oraen.box.common.util.ResourceUtil;
 import com.oraen.box.otorch.transformer.Tokenizer;
 import com.oraen.box.otorch.transformer.tokenizer.vocab.builder.BPEWordLevelVocabInfoBuilder;
 import com.oraen.box.otorch.transformer.tokenizer.vocab.BPEVocabInfo;
@@ -77,9 +78,7 @@ public class WordLevelBPETokenizer extends BPETokenizer {
     }
 
     public static void main(String[] args) throws IOException {
-        String testFilePath = "E:\\it\\project\\idea\\oraen-box\\oraen-box-otorch\\src\\main\\resources\\corpus\\corpusTest.txt";
-  //      String testFilePath = "E:\\it\\project\\idea\\oraen-box\\oraen-box-otorch\\src\\main\\resources\\corpus\\corpus-enTest.txt";
-        String content =  new String(Files.readAllBytes(Paths.get(testFilePath)), StandardCharsets.UTF_8);
+        String content = ResourceUtil.readResourceAsString("corpus/corpusTest.txt", StandardCharsets.UTF_8);
         BPEVocabInfo bpeVocabInfo = BPEWordLevelVocabInfoBuilder.builder()
                 .corpus(content)
                 .vocabSize(1000)

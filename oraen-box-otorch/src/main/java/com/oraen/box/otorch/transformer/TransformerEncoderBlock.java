@@ -39,6 +39,10 @@ public class TransformerEncoderBlock implements Layer<double[][], double[][]>, L
     // ================== Forward Pass ==================
     @Override
     public double[][][] forwardBatch(double[][][] data) {
+        int batchSize = data.length;
+
+
+
         int B = data.length;
         int T = data[0].length;
         int D = data[0][0].length;

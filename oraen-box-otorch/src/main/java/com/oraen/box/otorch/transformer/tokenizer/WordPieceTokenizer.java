@@ -1,6 +1,7 @@
 package com.oraen.box.otorch.transformer.tokenizer;
 
 import com.oraen.box.common.util.JSONUtil;
+import com.oraen.box.common.util.ResourceUtil;
 import com.oraen.box.otorch.transformer.Tokenizer;
 import com.oraen.box.otorch.transformer.tokenizer.vocab.BPEVocabInfo;
 import com.oraen.box.otorch.transformer.tokenizer.vocab.WordPieceVocabInfo;
@@ -101,9 +102,8 @@ public class WordPieceTokenizer implements Tokenizer {
 
 
     public static void main(String[] args) throws IOException {
-       // String testFilePath = "E:\\it\\project\\idea\\oraen-box\\oraen-box-otorch\\src\\main\\resources\\corpus\\corpus-enTest.txt";
-        String testFilePath = "/Users/corki/IdeaProjects/ad/oraen-box/oraen-box-otorch/src/main/resources/corpus/corpus-enTest.txt";
-        String content =  new String(Files.readAllBytes(Paths.get(testFilePath)), StandardCharsets.UTF_8);
+//        String content = ResourceUtil.readResourceAsString("corpus/corpusTest.txt", StandardCharsets.UTF_8);
+        String content = ResourceUtil.readResourceAsString("corpus/corpus-enTest.txt", StandardCharsets.UTF_8);
         WordPieceVocabInfo wordpieceVocabInfo = WordPieceVocabInfoBuilder.builder()
                 .corpus(content)
                 .vocabSize(1000)
