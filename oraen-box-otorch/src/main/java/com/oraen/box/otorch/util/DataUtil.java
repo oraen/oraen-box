@@ -10,6 +10,22 @@ public class DataUtil {
         return copy;
     }
 
+    public static double[][] copy(double[][] ds){
+        double[][] copy = new double[ds.length][];
+        for(int i = 0; i < ds.length; i++){
+            copy[i] = copy(ds[i]);
+        }
+        return copy;
+    }
+
+    public static double[][][] copy(double[][][] ds){
+        double[][][] copy = new double[ds.length][][];
+        for(int i = 0; i < ds.length; i++){
+            copy[i] = copy(ds[i]);
+        }
+        return copy;
+    }
+
     public static void clear(double[][]... ds){
         for(double [][] d : ds){
             for(double[] row : d){

@@ -72,6 +72,35 @@ public class TensorUtil {
         return result;
     }
 
+    public static double[] add(double[] a, double[] b) {
+        int length = a.length;
+        double[] result = new double[length];
+        for (int i = 0; i < length; i++) {
+            result[i] = a[i] + b[i];
+        }
+        return result;
+    }
+
+
+
+    public static double[][] add(double[][] a, double[][] b) {
+        double[][] result = new double[a.length][];
+        for(int i=0; i<a.length; i++) {
+            result[i] = add(a[i], b[i]);
+        }
+
+        return result;
+    }
+
+    public static double[][][] add(double[][][] a, double[][][] b) {
+        double[][][] result = new double[a.length][][];
+        for(int i=0; i<a.length; i++) {
+            result[i] = add(a[i], b[i]);
+        }
+
+        return result;
+    }
+
 }
 
 
